@@ -45,9 +45,19 @@ int doSetName(tid h, std::string_view name) {
     return res;
 #else
     char name16[16];
-    auto len = std::min(name.length()+1, size_t(16));
+    auto len = std::min(name.length() + 1, size_t(16));
     snprintf(name16, len, "%s", name.data());
+#   if defined(__APPLE__)
+    // stupid macs not letting us rename any thread but only the current one
+    if (h == pthread_self()) {
+        return pthread_setname_np(name16);
+    }
+    else {
+        return 0; // nothing smart to do
+    }
+#   else
     return pthread_setname_np(h, name16);
+#   endif
 #endif
 }
 }
