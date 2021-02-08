@@ -8,7 +8,7 @@ Build with CMake.
 
 ## Usage
 
-This build uses [CPM.cmake](https://github.com/TheLartians/CPM.cmake) to manage packages. Thus the preferred way of using the library is by adding it as a CPM package.
+This project uses [CPM.cmake](https://github.com/TheLartians/CPM.cmake) to manage packages. Thus the preferred way of using the library is by adding it as a CPM package.
 
 ## License
 

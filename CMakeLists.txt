@@ -36,7 +36,7 @@ CPMAddPackage(
 CPMAddPackage(
     NAME itlib
     GITHUB_REPOSITORY iboB/itlib
-    VERSION 1.0.0
+    VERSION 1.2.2
 )
 
 find_package(Threads REQUIRED)

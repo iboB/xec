@@ -3,7 +3,7 @@ include(icm_testing)
 CPMAddPackage(
     NAME doctest-lib
     GITHUB_REPOSITORY iboB/doctest-lib
-    GIT_TAG 2.4.3b
+    GIT_TAG 2.4.4
 )
 
 macro(xec_test test)
