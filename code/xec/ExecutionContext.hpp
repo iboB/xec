@@ -19,6 +19,8 @@ class ExecutorBase;
 class XEC_API ExecutionContext
 {
 public:
+    virtual ~ExecutionContext(); // defined in ExecutorBase.cpp, not here but in a cpp so as to export the vtable
+
     // signal that the executor needs to be updated
     virtual void wakeUpNow(ExecutorBase& e) = 0;
 
@@ -30,9 +32,6 @@ public:
 
     // called by an executor when it determines that it wants to be stopped
     virtual void stop(ExecutorBase& e) = 0;
-protected:
-    // intentionally not virtual
-    ~ExecutionContext() = default;
 };
 
 }

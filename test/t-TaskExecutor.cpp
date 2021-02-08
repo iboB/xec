@@ -8,6 +8,7 @@
 #include <doctest/doctest.h>
 #include <xec/TaskExecutor.hpp>
 #include <xec/ThreadExecution.hpp>
+#include <xec/NoopExecution.hpp>
 
 #include <random>
 #include <vector>
@@ -95,6 +96,7 @@ struct TestThread final : public xec::ExecutorBase
         : m_executor(executor)
         , m_execution(*this)
     {
+        m_executor.setExecutionContext(xec::NoopExecutionContext());
         m_execution.launchThread();
     }
 

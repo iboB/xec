@@ -6,6 +6,8 @@ icm_add_lib(xec XEC
     TaskExecutor.hpp
     ThreadExecution.cpp
     ThreadExecution.hpp
+    NoopExecution.cpp
+    NoopExecution.hpp
     ThreadName.hpp
     ThreadName.cpp
 )

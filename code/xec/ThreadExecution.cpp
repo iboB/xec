@@ -121,13 +121,12 @@ void ThreadExecutionContext::wait()
 ThreadExecution::ThreadExecution(ExecutorBase& e)
     : m_executor(e)
 {
-    m_oldExecitionContext = &m_executor.setExecutionContext(m_execution);
+    m_executor.setExecutionContext(m_execution);
 }
 
 ThreadExecution::~ThreadExecution()
 {
     stopAndJoinThread();
-    m_executor.setExecutionContext(*m_oldExecitionContext);
 }
 
 void ThreadExecution::launchThread(std::optional<std::string_view> threadName)

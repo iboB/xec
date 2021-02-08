@@ -59,7 +59,7 @@ private:
     std::mutex m_workMutex;
 };
 
-} // namespace detail
+} // namespace internal
 
 class XEC_API ThreadExecution
 {
@@ -75,7 +75,6 @@ public:
 private:
     ExecutorBase& m_executor;
     internal::ThreadExecutionContext m_execution;
-    ExecutionContext* m_oldExecitionContext;
     std::thread m_thread;
 
     // NOT MAIN THREAD

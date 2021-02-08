@@ -24,11 +24,12 @@ public:
 
     virtual void update() = 0;
 
-    // optionally called before destruction to finalize all remaining execution
+    // called before destruction to finalize all remaining execution
     virtual void finalize() {}
 
-    // returns the previously set execution context
-    ExecutionContext& setExecutionContext(ExecutionContext& context);
+    // only applicable if no context has been set (either in the ctor or by calling this method)
+    // no executor operations are valid until an execution context has been set
+    void setExecutionContext(ExecutionContext& context);
 
     ExecutionContext& executionContext() const { return *m_executionContext; }
 
@@ -37,7 +38,7 @@ public:
     void unscheduleNextWakeUp();
     void stop();
 private:
-    ExecutionContext* m_executionContext;
+    ExecutionContext* m_executionContext = nullptr;
 };
 
 }
