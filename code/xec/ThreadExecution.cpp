@@ -15,8 +15,6 @@
 
 namespace xec
 {
-namespace internal
-{
 
 ThreadExecutionContext::ThreadExecutionContext()
     : m_running(true)
@@ -115,8 +113,6 @@ void ThreadExecutionContext::wait()
         }
     }
 }
-
-} // namespace detail
 
 ThreadExecution::ThreadExecution(ExecutorBase& e)
     : m_executor(e)

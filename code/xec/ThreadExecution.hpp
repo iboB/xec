@@ -18,8 +18,6 @@
 
 namespace xec
 {
-namespace internal
-{
 
 class XEC_API ThreadExecutionContext final : public ExecutionContext
 {
@@ -59,8 +57,6 @@ private:
     std::mutex m_workMutex;
 };
 
-} // namespace internal
-
 class XEC_API ThreadExecution
 {
 public:
@@ -74,7 +70,7 @@ public:
     std::thread::id threadId() const { return m_thread.get_id(); }
 private:
     ExecutorBase& m_executor;
-    internal::ThreadExecutionContext m_execution;
+    ThreadExecutionContext m_execution;
     std::thread m_thread;
 
     // NOT MAIN THREAD
