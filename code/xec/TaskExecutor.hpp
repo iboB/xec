@@ -36,7 +36,7 @@ public:
     // tasks are pushed from various threads
     // tasks are executed on update
     using Task = itlib::ufunction<void()>;
-    using task_id = uint64_t;
+    using task_id = uint32_t;
 
     class TaskLocker
     {
@@ -102,6 +102,9 @@ private:
     bool m_tasksLocked = false;  // a silly defence but should work most of the time
     bool m_finishTasksOnExit = false;
     std::mutex m_tasksMutex;
+
+    task_id m_freeTaskId = 0;
+    task_id getNextTaskId();
 
     struct TaskWithId
     {

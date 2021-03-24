@@ -18,15 +18,13 @@ TaskExecutor::TaskExecutor(std::chrono::milliseconds minTimeToSchedule)
 
 namespace
 {
-std::atomic_uint64_t currentTaskId = {};
-TaskExecutor::task_id getNextTaskId()
-{
-    return currentTaskId.fetch_add(1, std::memory_order_relaxed);
-}
-
 auto tnow() { return std::chrono::steady_clock::now(); }
 }
 
+TaskExecutor::task_id TaskExecutor::getNextTaskId()
+{
+    return m_freeTaskId++;
+}
 
 bool TaskExecutor::TimedTaskQueue::tryEraseId(task_id id)
 {
