@@ -9,6 +9,7 @@
 
 #include <cassert>
 #include <atomic>
+#include <algorithm>
 
 namespace xec
 {
@@ -20,6 +21,13 @@ namespace
 {
 auto tnow() { return std::chrono::steady_clock::now(); }
 }
+
+struct TaskExecutor::TaskHasCToken
+{
+    TaskHasCToken(task_ctoken token) : m_token(token) {}
+    bool operator()(const TaskWithId& task) const { return task.ctoken == m_token; }
+    TaskExecutor::task_ctoken m_token;
+};
 
 TaskExecutor::task_id TaskExecutor::getNextTaskId()
 {
@@ -38,6 +46,18 @@ bool TaskExecutor::TimedTaskQueue::tryEraseId(task_id id)
         }
     }
     return false;
+}
+
+size_t TaskExecutor::TimedTaskQueue::eraseTasksWithToken(task_ctoken token)
+{
+    auto newEnd = std::remove_if(c.begin(), c.end(), TaskHasCToken(token));
+    auto size = c.end() - newEnd;
+    if (size)
+    {
+        c.erase(newEnd, c.end());
+        std::make_heap(c.begin(), c.end(), comp);
+    }
+    return size;
 }
 
 TaskExecutor::TimedTaskWithId TaskExecutor::TimedTaskQueue::topAndPop()
@@ -101,16 +121,19 @@ void TaskExecutor::unlockTasks()
     wakeUpNow(); // assuming something has changed
 }
 
-TaskExecutor::task_id TaskExecutor::pushTaskL(Task task)
+TaskExecutor::task_id TaskExecutor::pushTaskL(Task task, task_ctoken ownToken, task_ctoken tasksToCancelToken)
 {
     assert(m_tasksLocked);
+    cancelTasksWithTokenL(tasksToCancelToken);
+
     auto& newTask = m_taskQueue.emplace_back();
     newTask.task = std::move(task);
     newTask.id = getNextTaskId();
+    newTask.ctoken = ownToken;
     return newTask.id;
 }
 
-TaskExecutor::task_id TaskExecutor::scheduleTaskL(std::chrono::milliseconds timeFromNow, Task task)
+TaskExecutor::task_id TaskExecutor::scheduleTaskL(std::chrono::milliseconds timeFromNow, Task task, task_ctoken ownToken, task_ctoken tasksToCancelToken)
 {
     // no point in shceduling something which is about to happen so soon
     if (timeFromNow < m_minTimeToSchedule)
@@ -119,10 +142,12 @@ TaskExecutor::task_id TaskExecutor::scheduleTaskL(std::chrono::milliseconds time
     }
 
     assert(m_tasksLocked);
+    cancelTasksWithTokenL(tasksToCancelToken);
     const auto newId = getNextTaskId();
     TimedTaskWithId newTask;
     newTask.task = std::move(task);
     newTask.id = newId;
+    newTask.ctoken = ownToken;
     newTask.time = tnow() + timeFromNow;
     m_timedTasks.emplace(std::move(newTask));
     return newId;
@@ -131,7 +156,11 @@ TaskExecutor::task_id TaskExecutor::scheduleTaskL(std::chrono::milliseconds time
 bool TaskExecutor::cancelTask(task_id id)
 {
     std::lock_guard<std::mutex> l(m_tasksMutex);
+    return cancelTaskL(id);
+}
 
+bool TaskExecutor::cancelTaskL(task_id id)
+{
     for (auto taskIter = m_taskQueue.cbegin(); taskIter != m_taskQueue.cend(); ++taskIter)
     {
         if (taskIter->id == id)
@@ -142,6 +171,22 @@ bool TaskExecutor::cancelTask(task_id id)
     }
 
     return m_timedTasks.tryEraseId(id);
+}
+
+size_t TaskExecutor::cancelTasksWithToken(task_ctoken token)
+{
+    if (!token) return 0; // prevent lock on invalid token
+    std::lock_guard<std::mutex> l(m_tasksMutex);
+    return cancelTasksWithTokenL(token);
+}
+
+size_t TaskExecutor::cancelTasksWithTokenL(task_ctoken token)
+{
+    if (!token) return 0;
+    auto newEnd = std::remove_if(m_taskQueue.begin(), m_taskQueue.end(), TaskHasCToken(token));
+    auto size = m_taskQueue.end() - newEnd;
+    m_taskQueue.erase(newEnd, m_taskQueue.end());
+    return size + m_timedTasks.eraseTasksWithToken(token);
 }
 
 void TaskExecutor::finalize()

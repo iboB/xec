@@ -137,7 +137,7 @@ static uint32_t generateRandomNumber()
     return dist(mt);
 }
 
-static std::vector<xec::TaskExecutor::task_id> pushIdTasks(TaskExecutorExample& executor, uint32_t taskCount)
+static std::vector<xec::TaskExecutor::task_id> pushIdTasks(TaskExecutorExample& executor, uint32_t taskCount, xec::TaskExecutor::task_ctoken ctoken)
 {
     std::vector<xec::TaskExecutor::task_id> taskIds(taskCount);
 
@@ -148,7 +148,7 @@ static std::vector<xec::TaskExecutor::task_id> pushIdTasks(TaskExecutorExample& 
             auto id = std::make_shared<xec::TaskExecutor::task_id>();
             AddIdToCounterTask task(executor);
             task.id = id;
-            *id = taskLocker.pushTask(std::move(task));
+            *id = taskLocker.pushTask(std::move(task), ctoken);
             taskIds[i] = *id;
         }
     }
@@ -193,6 +193,11 @@ TEST_CASE("pushTask")
     CHECK(executor.counter() == taskCount);
 }
 
+static uint32_t sumIds(const std::vector<xec::TaskExecutor::task_id>& ids)
+{
+    return std::accumulate(ids.begin(), ids.end(), uint32_t(0));
+}
+
 TEST_CASE("cancelTask")
 {
     const auto taskCount = generateRandomNumber();
@@ -200,16 +205,74 @@ TEST_CASE("cancelTask")
 
     executor.testThread()->waitForFinishedUpdate();
 
-    auto taskIds = pushIdTasks(executor, taskCount);
+    auto taskIds = pushIdTasks(executor, taskCount, 0);
     auto randTaskIndex = generateRandomNumber() % taskCount;
     REQUIRE(executor.cancelTask(taskIds[randTaskIndex]));
 
     executor.testThread()->wakeUpNow();
     executor.testThread()->waitForFinishedUpdate();
 
-    auto expectedSum = std::accumulate(taskIds.begin(), taskIds.end(), uint64_t(0)) - taskIds[randTaskIndex];
+    auto expectedSum = sumIds(taskIds) - taskIds[randTaskIndex];
     REQUIRE(executor.counter() == expectedSum);
 }
+
+TEST_CASE("cancelTasksWithToken")
+{
+    TaskExecutorExample executor;
+
+    executor.testThread()->waitForFinishedUpdate();
+
+    auto taskIds1 = pushIdTasks(executor, 10, 1);
+    auto taskIds0 = pushIdTasks(executor, 10, 0);
+    auto taskIds2 = pushIdTasks(executor, 10, 2);
+    auto taskIds0a = pushIdTasks(executor, 10, 0);
+    auto taskIds3 = pushIdTasks(executor, 10, 3);
+    auto taskIds0b = pushIdTasks(executor, 10, 0);
+
+    CHECK(executor.cancelTasksWithToken(0) == 0);
+    CHECK(executor.cancelTasksWithToken(1) == 10);
+    CHECK(executor.cancelTasksWithToken(3) == 10);
+
+    executor.testThread()->wakeUpNow();
+    executor.testThread()->waitForFinishedUpdate();
+
+    auto expectedSum = sumIds(taskIds0) + sumIds(taskIds0a) + sumIds(taskIds2) + sumIds(taskIds0b);
+    REQUIRE(executor.counter() == expectedSum);
+}
+
+TEST_CASE("byPush")
+{
+    TaskExecutorExample executor;
+
+    executor.testThread()->waitForFinishedUpdate();
+
+    auto taskIds1 = pushIdTasks(executor, 10, 1);
+    auto taskIds0 = pushIdTasks(executor, 10, 0);
+    auto taskIds2 = pushIdTasks(executor, 10, 2);
+    auto taskIds0a = pushIdTasks(executor, 10, 0);
+
+    AddIdToCounterTask r3(executor);
+    r3.id = std::make_shared<xec::TaskExecutor::task_id>(68001);
+    executor.pushTask(std::move(r3), 0, 3);
+
+    auto taskIds3 = pushIdTasks(executor, 10, 3);
+    auto taskIds0b = pushIdTasks(executor, 10, 0);
+
+    AddIdToCounterTask r1(executor);
+    r1.id = std::make_shared<xec::TaskExecutor::task_id>(12345);
+    executor.pushTask(std::move(r1), 0, 1);
+
+    AddIdToCounterTask r2(executor);
+    r2.id = std::make_shared<xec::TaskExecutor::task_id>(78910);
+    executor.pushTask(std::move(r2), 0, 2);
+
+    executor.testThread()->wakeUpNow();
+    executor.testThread()->waitForFinishedUpdate();
+
+    auto expectedSum = sumIds(taskIds0) + sumIds(taskIds0a) + sumIds(taskIds0b) + sumIds(taskIds3) + 12345 + 78910 + 68001;
+    REQUIRE(executor.counter() == expectedSum);
+}
+
 
 class TestThreadFinish : public xec::TaskExecutor
 {

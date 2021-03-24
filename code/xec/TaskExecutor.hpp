@@ -37,6 +37,7 @@ public:
     // tasks are executed on update
     using Task = itlib::ufunction<void()>;
     using task_id = uint32_t;
+    using task_ctoken = uint32_t; // cancellation cotken
 
     class TaskLocker
     {
@@ -56,27 +57,27 @@ public:
         {
             if (m_executor) m_executor->unlockTasks();
         }
-        task_id pushTask(Task task)
+        task_id pushTask(Task task, task_ctoken ownToken = 0, task_ctoken tasksToCancelToken = 0)
         {
-            return m_executor->pushTaskL(std::move(task));
+            return m_executor->pushTaskL(std::move(task), ownToken, tasksToCancelToken);
         }
-        task_id scheduleTask(std::chrono::milliseconds timeFromNow, Task task)
+        task_id scheduleTask(std::chrono::milliseconds timeFromNow, Task task, task_ctoken ownToken = 0, task_ctoken tasksToCancelToken = 0)
         {
-            return m_executor->scheduleTaskL(timeFromNow, std::move(task));
+            return m_executor->scheduleTaskL(timeFromNow, std::move(task), ownToken, tasksToCancelToken);
         }
     private:
         TaskExecutor* m_executor;
     };
     TaskLocker taskLocker() { return TaskLocker(this); }
 
-    task_id pushTask(Task task)
+    task_id pushTask(Task task, task_ctoken ownToken = 0, task_ctoken tasksToCancelToken = 0)
     {
-        return taskLocker().pushTask(std::move(task));
+        return taskLocker().pushTask(std::move(task), ownToken, tasksToCancelToken);
     }
 
-    task_id scheduleTask(std::chrono::milliseconds timeFromNow, Task task)
+    task_id scheduleTask(std::chrono::milliseconds timeFromNow, Task task, task_ctoken ownToken = 0, task_ctoken tasksToCancelToken = 0)
     {
-        return taskLocker().scheduleTask(timeFromNow, std::move(task));
+        return taskLocker().scheduleTask(timeFromNow, std::move(task), ownToken, tasksToCancelToken);
     }
 
     // task locking
@@ -85,17 +86,24 @@ public:
     void unlockTasks();
 
     // only valid on any thread when tasks are locked
-    task_id pushTaskL(Task task);
-    task_id scheduleTaskL(std::chrono::milliseconds timeFromNow, Task task);
+    task_id pushTaskL(Task task, task_ctoken ownToken = 0, task_ctoken tasksToCancelToken = 0);
+    task_id scheduleTaskL(std::chrono::milliseconds timeFromNow, Task task, task_ctoken ownToken = 0, task_ctoken tasksToCancelToken = 0);
 
     // will cancel the task successfully and return true if the task queue containing
     // the task hasn't started executing.
     // returns whether the task was removed from the pending tasks
-    // WARNING if this returns false one of three things might be true:
+    // WARNING: if this returns false one of three things might be true:
     // * The task was never added (bad id)
     // * The task is currently executing
     // * The task has finished executing
     bool cancelTask(task_id id);
+    bool cancelTaskL(task_id id); // only valid on any thread when tasks are locked
+
+    // will cancel tasks which were added with a given token and return the number successfully cancelled
+    // WARNING: tasks which are currently executing are added for immediate execution won't be cancelled
+    // the number of such tasks may be more than one!
+    size_t cancelTasksWithToken(task_ctoken token);
+    size_t cancelTasksWithTokenL(task_ctoken token); // only valid on any thread when tasks are locked
 private:
     std::chrono::milliseconds m_minTimeToSchedule;
 
@@ -110,6 +118,7 @@ private:
     {
         Task task;
         task_id id;
+        task_ctoken ctoken;
     };
     std::vector<TaskWithId> m_taskQueue;
 
@@ -130,9 +139,12 @@ private:
         : public std::priority_queue<TimedTaskWithId, std::vector<TimedTaskWithId>, TimedTaskWithId::Later>
     {
         bool tryEraseId(task_id id);
+        size_t eraseTasksWithToken(task_ctoken token);
         TimedTaskWithId topAndPop();
     };
     TimedTaskQueue m_timedTasks;
+
+    struct TaskHasCToken; // helper for searches by token
 };
 
 }
