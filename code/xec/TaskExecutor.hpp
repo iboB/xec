@@ -113,10 +113,8 @@ private:
     };
     std::vector<TaskWithId> m_taskQueue;
 
-    struct TimedTaskWithId
+    struct TimedTaskWithId : public TaskWithId
     {
-        Task task;
-        task_id id;
         std::chrono::steady_clock::time_point time;
         struct Later
         {
