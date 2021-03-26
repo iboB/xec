@@ -135,14 +135,19 @@ void ThreadExecution::launchThread(std::optional<std::string_view> threadName)
     }
 }
 
-void ThreadExecution::stopAndJoinThread()
+void ThreadExecution::joinThread()
 {
     if (m_thread.joinable())
     {
-        m_executor.stop();
         m_thread.join();
         m_executor.finalize();
     }
+}
+
+void ThreadExecution::stopAndJoinThread()
+{
+    m_executor.stop();
+    joinThread();
 }
 
 void ThreadExecution::thread()
