@@ -68,7 +68,6 @@ public:
     void joinThread(); // Wait for thread to join. WARNING: unless someone stops the execution, this will wait indefinitely!
     void stopAndJoinThread(); // Stop the execution and wait for join
 
-
     std::thread::id threadId() const { return m_thread.get_id(); }
 private:
     ExecutorBase& m_executor;

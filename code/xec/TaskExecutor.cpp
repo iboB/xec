@@ -34,13 +34,29 @@ TaskExecutor::task_id TaskExecutor::getNextTaskId()
     return m_freeTaskId++;
 }
 
-bool TaskExecutor::TimedTaskQueue::tryEraseId(task_id id)
+TaskExecutor::TaskWithId TaskExecutor::TimedTaskQueue::tryExtractId(task_id id)
 {
     for (auto taskIter = c.begin(); taskIter != c.end(); ++taskIter)
     {
         if (taskIter->id == id)
         {
+            // intentional slice
+            TaskExecutor::TaskWithId extracted = std::move(*taskIter);
             c.erase(taskIter);
+            std::make_heap(c.begin(), c.end(), comp);
+            return extracted;
+        }
+    }
+    return {};
+}
+
+bool TaskExecutor::TimedTaskQueue::tryRescheduleId(std::chrono::steady_clock::time_point newTime, task_id id)
+{
+    for (auto taskIter = c.begin(); taskIter != c.end(); ++taskIter)
+    {
+        if (taskIter->id == id)
+        {
+            taskIter->time = newTime;
             std::make_heap(c.begin(), c.end(), comp);
             return true;
         }
@@ -170,7 +186,23 @@ bool TaskExecutor::cancelTaskL(task_id id)
         }
     }
 
-    return m_timedTasks.tryEraseId(id);
+    return !!m_timedTasks.tryExtractId(id).task;
+}
+
+bool TaskExecutor::rescheduleTaskL(std::chrono::milliseconds timeFromNow, task_id id)
+{
+    if (timeFromNow < m_minTimeToSchedule)
+    {
+        auto t = m_timedTasks.tryExtractId(id);
+        if (!t.task) return false;
+        m_taskQueue.emplace_back(std::move(t));
+        return true;
+    }
+    else
+    {
+        auto newTime = tnow() + timeFromNow;
+        return m_timedTasks.tryRescheduleId(newTime, id);
+    }
 }
 
 size_t TaskExecutor::cancelTasksWithToken(task_ctoken token)

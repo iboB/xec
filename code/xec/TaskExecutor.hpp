@@ -65,6 +65,10 @@ public:
         {
             return m_executor->scheduleTaskL(timeFromNow, std::move(task), ownToken, tasksToCancelToken);
         }
+        bool rescheduleTask(std::chrono::milliseconds timeFromNow, task_id id)
+        {
+            return m_executor->rescheduleTaskL(timeFromNow, id);
+        }
     private:
         TaskExecutor* m_executor;
     };
@@ -78,6 +82,11 @@ public:
     task_id scheduleTask(std::chrono::milliseconds timeFromNow, Task task, task_ctoken ownToken = 0, task_ctoken tasksToCancelToken = 0)
     {
         return taskLocker().scheduleTask(timeFromNow, std::move(task), ownToken, tasksToCancelToken);
+    }
+
+    bool rescheduleTask(std::chrono::milliseconds timeFromNow, task_id id)
+    {
+        return taskLocker().rescheduleTask(timeFromNow, id);
     }
 
     // task locking
@@ -98,6 +107,11 @@ public:
     // * The task has finished executing
     bool cancelTask(task_id id);
     bool cancelTaskL(task_id id); // only valid on any thread when tasks are locked
+
+    // reschedule a scheduled task
+    // will return true if the reschedule was successful
+    // the conditions to return false are the same as the ones from cancelTask
+    bool rescheduleTaskL(std::chrono::milliseconds timeFromNow, task_id id);
 
     // will cancel tasks which were added with a given token and return the number successfully cancelled
     // WARNING: tasks which are currently executing are added for immediate execution won't be cancelled
@@ -138,7 +152,8 @@ private:
     struct TimedTaskQueue
         : public std::priority_queue<TimedTaskWithId, std::vector<TimedTaskWithId>, TimedTaskWithId::Later>
     {
-        bool tryEraseId(task_id id);
+        TaskWithId tryExtractId(task_id id); // will return empty task if not successful
+        bool tryRescheduleId(std::chrono::steady_clock::time_point newTime, task_id id);
         size_t eraseTasksWithToken(task_ctoken token);
         TimedTaskWithId topAndPop();
     };

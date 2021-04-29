@@ -112,3 +112,23 @@ TEST_CASE("Execute")
     CHECK(status.t2 == 2);
     CHECK(status.t3 == 1);
 }
+
+TEST_CASE("reschedule")
+{
+    Executor xec;
+    TaskStatus status;
+    xec.setFinishTasksOnExit(true);
+
+    {
+        auto t = xec.taskLocker();
+        auto id = t.scheduleTask(std::chrono::milliseconds(30), Task3(status));
+        t.scheduleTask(std::chrono::milliseconds(50), Task2(status));
+
+        CHECK(t.rescheduleTask(std::chrono::milliseconds(60), id));
+    }
+
+    while(status.t3 == 0) std::this_thread::yield();
+    xec.e.stopAndJoinThread();
+
+    CHECK(status.t2 == 1);
+}
