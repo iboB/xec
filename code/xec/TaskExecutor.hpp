@@ -37,7 +37,7 @@ public:
     // tasks are executed on update
     using Task = itlib::ufunction<void()>;
     using task_id = uint32_t;
-    using task_ctoken = uint32_t; // cancellation cotken
+    using task_ctoken = uint32_t; // cancellation token
 
     class TaskLocker
     {
