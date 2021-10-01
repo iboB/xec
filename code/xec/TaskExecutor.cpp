@@ -84,11 +84,28 @@ TaskExecutor::TimedTaskWithId TaskExecutor::TimedTaskQueue::topAndPop()
     return ret;
 }
 
+void TaskExecutor::fillExecutingTasksL()
+{
+    for (auto& task : m_taskQueue)
+    {
+        m_executingTasks.emplace_back(std::move(task.task));
+    }
+    m_taskQueue.clear();
+}
+
+void TaskExecutor::executeTasks()
+{
+    for (auto& task : m_executingTasks)
+    {
+        task();
+    }
+    m_executingTasks.clear();
+}
+
 void TaskExecutor::update()
 {
     m_tasksMutex.lock();
-    std::vector<TaskWithId> tasks;
-    tasks.swap(m_taskQueue);
+    fillExecutingTasksL();
 
     if (!m_timedTasks.empty())
     {
@@ -99,8 +116,7 @@ void TaskExecutor::update()
             auto& top = m_timedTasks.top();
             if (top.time <= maxTimeToExecute)
             {
-                auto& nt = tasks.emplace_back();
-                nt.task = m_timedTasks.topAndPop().task;
+                m_executingTasks.emplace_back(m_timedTasks.topAndPop().task);
                 if (m_timedTasks.empty())
                 {
                     unscheduleNextWakeUp();
@@ -118,10 +134,7 @@ void TaskExecutor::update()
 
     m_tasksMutex.unlock();
 
-    for (auto& task : tasks)
-    {
-        task.task();
-    }
+    executeTasks();
 }
 
 void TaskExecutor::lockTasks()
@@ -231,16 +244,12 @@ void TaskExecutor::finalize()
         while (true)
         {
             m_tasksMutex.lock();
-            std::vector<TaskWithId> tasks;
-            tasks.swap(m_taskQueue);
+            fillExecutingTasksL();
             m_tasksMutex.unlock();
 
-            if (tasks.empty()) break;
+            if (m_executingTasks.empty()) break;
 
-            for (auto& task : tasks)
-            {
-                task.task();
-            }
+            executeTasks();
         }
     }
 }
