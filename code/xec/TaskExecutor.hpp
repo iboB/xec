@@ -138,11 +138,11 @@ private:
 
     // the access to this vector are strictly ordered
     // it's only touched in update and finalize
-    // it's filled with tasks from the queue
+    // it's serves as a double-buffer for tasks from the queue
     // it's purpose is to save allocations for adding new tasks
-    // instead, eventually this vector and the tasks queue vector will read a peak capacity
-    // and new tasks won't lead to allocations here
-    std::vector<Task> m_executingTasks;
+    // instead, eventually this vector and the tasks queue vector will reach a peak capacity
+    // and new tasks won't lead to allocations
+    std::vector<TaskWithId> m_executingTasks;
     void fillExecutingTasksL();
     void executeTasks();
 

@@ -86,18 +86,15 @@ TaskExecutor::TimedTaskWithId TaskExecutor::TimedTaskQueue::topAndPop()
 
 void TaskExecutor::fillExecutingTasksL()
 {
-    for (auto& task : m_taskQueue)
-    {
-        m_executingTasks.emplace_back(std::move(task.task));
-    }
-    m_taskQueue.clear();
+    assert(m_executingTasks.empty());
+    m_executingTasks.swap(m_taskQueue);
 }
 
 void TaskExecutor::executeTasks()
 {
     for (auto& task : m_executingTasks)
     {
-        task();
+        task.task();
     }
     m_executingTasks.clear();
 }
@@ -116,7 +113,8 @@ void TaskExecutor::update()
             auto& top = m_timedTasks.top();
             if (top.time <= maxTimeToExecute)
             {
-                m_executingTasks.emplace_back(m_timedTasks.topAndPop().task);
+                auto& nt = m_executingTasks.emplace_back();
+                nt.task = m_timedTasks.topAndPop().task;
                 if (m_timedTasks.empty())
                 {
                     unscheduleNextWakeUp();
