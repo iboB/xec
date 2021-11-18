@@ -8,7 +8,6 @@
 #include <doctest/doctest.h>
 #include <xec/TaskExecutor.hpp>
 #include <xec/ThreadExecution.hpp>
-#include <xec/NoopExecution.hpp>
 
 #include <random>
 #include <vector>
@@ -90,13 +89,23 @@ struct AddIdToCounterTask : TaskExecutorExampleTask
     }
 };
 
+class NoopExecutionContext final : public xec::ExecutionContext
+{
+    virtual void wakeUpNow(xec::ExecutorBase&) override {}
+    virtual void stop(xec::ExecutorBase&) override {}
+    virtual void scheduleNextWakeUp(xec::ExecutorBase&, std::chrono::milliseconds) override {}
+    virtual void unscheduleNextWakeUp(xec::ExecutorBase&) override {}
+};
+
+NoopExecutionContext noopContext;
+
 struct TestThread final : public xec::ExecutorBase
 {
     explicit TestThread(TaskExecutorExample& executor)
         : m_executor(executor)
         , m_execution(*this)
     {
-        m_executor.setExecutionContext(xec::NoopExecutionContext());
+        m_executor.setExecutionContext(noopContext);
         m_execution.launchThread();
     }
 
