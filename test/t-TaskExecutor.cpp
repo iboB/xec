@@ -303,7 +303,6 @@ public:
 
 std::atomic_bool secondTaskFinished = false;
 
-
 struct SleepTask {
     SleepTask(TestThreadFinish& tt) : t(tt) {}
     TestThreadFinish& t;
@@ -333,4 +332,31 @@ TEST_CASE("finishTasks") {
         testThread.pushTask(SleepTask(testThread));
     }
     REQUIRE(secondTaskFinished);
+}
+
+TEST_CASE("initial context") {
+    int i = 0;
+
+    xec::TaskExecutor te;
+    te.setFinishTasksOnExit(false);
+    te.pushTask([&i]() { ++i; });
+    te.pushTask([&i]() { ++i; });
+    te.pushTask([&te]() { te.stop(); });
+
+    SUBCASE("run tasks")
+    {
+        xec::ThreadExecution exec(te);
+        exec.launchThread();
+        exec.joinThread();
+        CHECK(i == 2);
+    }
+
+    SUBCASE("stop")
+    {
+        xec::ThreadExecution exec(te);
+        te.stop();
+        exec.launchThread();
+        exec.joinThread();
+        CHECK(i == 0);
+    }
 }

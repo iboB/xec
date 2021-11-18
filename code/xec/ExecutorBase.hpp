@@ -9,6 +9,7 @@
 
 #include "API.h"
 #include <chrono>
+#include <type_traits>
 
 namespace xec
 {
@@ -39,6 +40,14 @@ public:
     void stop();
 private:
     ExecutionContext* m_executionContext = nullptr;
+
+    // hacky pimpl
+    // this actually stores a custom oneshot execution context which is used at the beginning
+    // and then ignored throughout
+    class InitialContext;
+    using Buf = std::aligned_storage_t<3 * sizeof(size_t) + sizeof(std::chrono::steady_clock::time_point), alignof(void*)>;
+    Buf m_initialContextBuffer;
+    InitialContext* m_initialContext = nullptr;
 };
 
 }
