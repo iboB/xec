@@ -1,10 +1,7 @@
 include(icm_testing)
 
-CPMAddPackage(
-    NAME doctest-lib
-    GITHUB_REPOSITORY iboB/doctest-lib
-    GIT_TAG 2.4.4
-)
+CPMAddPackage(gh:iboB/doctest-lib@2.4.6)
+
 
 macro(xec_test test)
     icm_add_doctest_lib_test(${test} xec ${ARGN})
