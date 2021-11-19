@@ -25,7 +25,7 @@ option(XEC_BUILD_TESTS "xec: build tests" ${ICM_DEV_MODE})
 
 #######################################
 # packages
-CPMAddPackage(gh:iboB/splat@1.0.0)
+CPMAddPackage(gh:iboB/splat@1.1.0)
 CPMAddPackage(gh:iboB/itlib@1.4.5)
 
 find_package(Threads REQUIRED)
