@@ -6,7 +6,6 @@
 // https://opensource.org/licenses/MIT
 //
 #pragma once
-
 #include "ExecutionContext.hpp"
 
 #include <mutex>
