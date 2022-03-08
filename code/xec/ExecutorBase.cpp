@@ -9,7 +9,6 @@
 #include "ExecutionContext.hpp"
 
 #include <cassert>
-#include <new>
 #include <optional>
 
 namespace xec
