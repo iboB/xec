@@ -14,7 +14,6 @@
 #if defined(_WIN32)
 #   define WIN32_LEAN_AND_MEAN
 #   include <Windows.h>
-#   include <string>
 using tid = HANDLE;
 #else
 using tid = pthread_t;
@@ -60,17 +59,54 @@ int doSetName(tid h, std::string_view name) {
 #   endif
 #endif
 }
+
+std::string doGetName(tid h)
+{
+    std::string name;
+#if defined(_WIN32)
+    PWSTR desc = nullptr;
+    if (FAILED(GetThreadDescription(h, &desc))) return {};
+    auto p = desc;
+    while (*p)
+    {
+        name.push_back(char(*p));
+        ++p;
+    }
+    LocalFree(desc);
+#else
+    char name16[17] = {}
+    pthread_getname_np(h, name16, sizeof(name16));
+    name = name16;
+#endif
+    return name;
+}
 }
 
-int SetThreadName(std::thread& t, std::string_view name) {
+int SetThreadName(std::thread& t, std::string_view name)
+{
     return doSetName(t.native_handle(), name);
 }
 
-int SetThisThreadName(std::string_view name) {
+int SetThisThreadName(std::string_view name)
+{
 #if defined(_WIN32)
     return doSetName(GetCurrentThread(), name);
 #else
     return doSetName(pthread_self(), name);
+#endif
+}
+
+std::string GetThreadName(std::thread& t)
+{
+    return doGetName(t.native_handle());
+}
+
+std::string GetThisThreadName()
+{
+#if defined(_WIN32)
+    return doGetName(GetCurrentThread());
+#else
+    return doGetName(pthread_self());
 #endif
 }
 
