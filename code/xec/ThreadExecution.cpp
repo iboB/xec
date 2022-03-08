@@ -116,6 +116,7 @@ void ThreadExecutionContext::wait()
 
 ThreadExecution::ThreadExecution(ExecutorBase& e)
     : m_executor(e)
+    , m_execution(std::make_shared<ThreadExecutionContext>())
 {
     m_executor.setExecutionContext(m_execution);
 }
@@ -152,9 +153,9 @@ void ThreadExecution::stopAndJoinThread()
 
 void ThreadExecution::thread()
 {
-    while(m_execution.running())
+    while(m_execution->running())
     {
-        m_execution.wait();
+        m_execution->wait();
         m_executor.update();
     }
 }

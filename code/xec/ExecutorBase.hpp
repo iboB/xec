@@ -9,7 +9,7 @@
 
 #include "API.h"
 #include <chrono>
-#include <type_traits>
+#include <memory>
 
 namespace xec
 {
@@ -20,7 +20,7 @@ class XEC_API ExecutorBase
 {
 public:
     ExecutorBase();
-    ExecutorBase(ExecutionContext& context);
+    ExecutorBase(std::shared_ptr<ExecutionContext> context);
     virtual ~ExecutorBase();
 
     virtual void update() = 0;
@@ -29,8 +29,8 @@ public:
     virtual void finalize() {}
 
     // only applicable if no context has been set (either in the ctor or by calling this method)
-    // no executor operations are valid until an execution context has been set
-    void setExecutionContext(ExecutionContext& context);
+    // until the context is set, a default one will be used and no execution will happen
+    void setExecutionContext(std::shared_ptr<ExecutionContext> context);
 
     ExecutionContext& executionContext() const { return *m_executionContext; }
 
@@ -39,14 +39,11 @@ public:
     void unscheduleNextWakeUp();
     void stop();
 private:
-    ExecutionContext* m_executionContext = nullptr;
+    std::shared_ptr<ExecutionContext> m_executionContext; // never null
 
-    // hacky pimpl
-    // this actually stores a custom oneshot execution context which is used at the beginning
-    // and then ignored throughout
+    // potentially points to a custom oneshot execution context which is used
+    // when default constructed and then ignored throughout
     class InitialContext;
-    using Buf = std::aligned_storage_t<3 * sizeof(size_t) + sizeof(std::chrono::steady_clock::time_point), alignof(void*)>;
-    Buf m_initialContextBuffer;
     InitialContext* m_initialContext = nullptr;
 };
 

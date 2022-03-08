@@ -66,29 +66,22 @@ public:
 };
 
 ExecutorBase::ExecutorBase()
-    : m_initialContext(new (&m_initialContextBuffer) InitialContext)
-{
-    static_assert(sizeof(InitialContext) <= sizeof(m_initialContextBuffer));
-    m_executionContext = m_initialContext;
-}
-
-ExecutorBase::ExecutorBase(ExecutionContext& context)
-    : m_executionContext(&context)
+    : m_executionContext(std::make_shared<InitialContext>())
+    , m_initialContext(static_cast<InitialContext*>(m_executionContext.get()))
 {}
 
-ExecutorBase::~ExecutorBase()
-{
-    if (m_initialContext) m_initialContext->~InitialContext();
-}
+ExecutorBase::ExecutorBase(std::shared_ptr<ExecutionContext> context)
+    : m_executionContext(std::move(context))
+{}
 
-void ExecutorBase::setExecutionContext(ExecutionContext& context)
-{
-    assert(m_executionContext == m_initialContext);
-    m_executionContext = &context;
+ExecutorBase::~ExecutorBase() = default;
 
+void ExecutorBase::setExecutionContext(std::shared_ptr<ExecutionContext> context)
+{
+    assert(m_executionContext.get() == m_initialContext);
+    auto keep = m_executionContext; // keep initial context alive for the transfer
+    m_executionContext = std::move(context);
     m_initialContext->transfer(*this);
-    m_initialContext->~InitialContext();
-    m_initialContext = nullptr;
 }
 
 void ExecutorBase::wakeUpNow()

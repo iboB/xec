@@ -15,6 +15,7 @@
 #include <thread>
 #include <string_view>
 #include <optional>
+#include <memory>
 
 namespace xec
 {
@@ -71,7 +72,7 @@ public:
     std::thread::id threadId() const { return m_thread.get_id(); }
 private:
     ExecutorBase& m_executor;
-    ThreadExecutionContext m_execution;
+    std::shared_ptr<ThreadExecutionContext> m_execution;
     std::thread m_thread;
 
     // NOT MAIN THREAD

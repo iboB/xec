@@ -97,15 +97,13 @@ class NoopExecutionContext final : public xec::ExecutionContext
     virtual void unscheduleNextWakeUp(xec::ExecutorBase&) override {}
 };
 
-NoopExecutionContext noopContext;
-
 struct TestThread final : public xec::ExecutorBase
 {
     explicit TestThread(TaskExecutorExample& executor)
         : m_executor(executor)
         , m_execution(*this)
     {
-        m_executor.setExecutionContext(noopContext);
+        m_executor.setExecutionContext(std::make_shared<NoopExecutionContext>());
         m_execution.launchThread();
     }
 
