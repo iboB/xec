@@ -22,13 +22,13 @@ auto tnow() { return std::chrono::steady_clock::now(); }
 class ExecutorBase::InitialContext : public ExecutionContext
 {
 public:
-    virtual void wakeUpNow(xec::ExecutorBase&) override { m_wakeUpNow = true; }
-    virtual void stop(xec::ExecutorBase&) override { m_stop = true; }
-    virtual void scheduleNextWakeUp(xec::ExecutorBase&, std::chrono::milliseconds timeFromNow) override
+    virtual void wakeUpNow(ExecutorBase&) override { m_wakeUpNow = true; }
+    virtual void stop(ExecutorBase&) override { m_stop = true; }
+    virtual void scheduleNextWakeUp(ExecutorBase&, std::chrono::milliseconds timeFromNow) override
     {
         m_scheduledWakeUpTime = tnow() + timeFromNow;
     }
-    virtual void unscheduleNextWakeUp(xec::ExecutorBase&) override
+    virtual void unscheduleNextWakeUp(ExecutorBase&) override
     {
         m_scheduledWakeUpTime.reset();
     }
