@@ -114,12 +114,20 @@ void ThreadExecutionContext::wait()
     }
 }
 
-ThreadExecution::ThreadExecution(ExecutorBase& e)
+ThreadExecution::ThreadExecution(ExecutorBase& e, std::shared_ptr<ThreadExecutionContext> execution)
     : m_executor(e)
-    , m_execution(std::make_shared<ThreadExecutionContext>())
+    , m_execution(std::move(execution))
 {
-    m_executor.setExecutionContext(m_execution);
+    // check if the execution context is not alreay set
+    if (&m_executor.executionContext() != m_execution.get())
+    {
+        m_executor.setExecutionContext(m_execution);
+    }
 }
+
+ThreadExecution::ThreadExecution(ExecutorBase& e)
+    : ThreadExecution(e, std::make_shared<ThreadExecutionContext>())
+{}
 
 ThreadExecution::~ThreadExecution()
 {
