@@ -116,12 +116,12 @@ void ThreadExecutionContext::wait()
 
 ThreadExecution::ThreadExecution(ExecutorBase& e, std::shared_ptr<ThreadExecutionContext> execution)
     : m_executor(e)
-    , m_execution(std::move(execution))
+    , m_context(std::move(execution))
 {
     // check if the execution context is not alreay set
-    if (&m_executor.executionContext() != m_execution.get())
+    if (m_executor.executionContext() != m_context)
     {
-        m_executor.setExecutionContext(m_execution);
+        m_executor.setExecutionContext(m_context);
     }
 }
 
@@ -161,9 +161,9 @@ void ThreadExecution::stopAndJoinThread()
 
 void ThreadExecution::thread()
 {
-    while(m_execution->running())
+    while(m_context->running())
     {
-        m_execution->wait();
+        m_context->wait();
         m_executor.update();
     }
 }

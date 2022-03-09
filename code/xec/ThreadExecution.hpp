@@ -72,7 +72,7 @@ public:
     std::thread::id threadId() const { return m_thread.get_id(); }
 private:
     ExecutorBase& m_executor;
-    std::shared_ptr<ThreadExecutionContext> m_execution;
+    std::shared_ptr<ThreadExecutionContext> m_context;
     std::thread m_thread;
 
     // NOT MAIN THREAD

@@ -32,7 +32,7 @@ public:
     // until the context is set, a default one will be used and no execution will happen
     void setExecutionContext(std::shared_ptr<ExecutionContext> context);
 
-    ExecutionContext& executionContext() const { return *m_executionContext; }
+    const std::shared_ptr<ExecutionContext>& executionContext() const { return m_executionContext; }
 
     void wakeUpNow();
     void scheduleNextWakeUp(std::chrono::milliseconds timeFromNow);
