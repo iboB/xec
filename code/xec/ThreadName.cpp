@@ -74,7 +74,7 @@ std::string doGetName(tid h)
     }
     LocalFree(desc);
 #else
-    char name16[17] = {}
+    char name16[17] = {};
     pthread_getname_np(h, name16, sizeof(name16));
     name = name16;
 #endif
