@@ -165,6 +165,7 @@ private:
         bool tryRescheduleId(std::chrono::steady_clock::time_point newTime, task_id id);
         size_t eraseTasksWithToken(task_ctoken token);
         TimedTaskWithId topAndPop();
+        void clear() { c.clear(); }
     };
     TimedTaskQueue m_timedTasks;
 

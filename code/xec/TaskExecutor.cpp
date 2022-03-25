@@ -250,6 +250,11 @@ void TaskExecutor::finalize()
             executeTasks();
         }
     }
+
+    // whether we finish tasks or not, we clear them all in case they're holding some references
+    std::lock_guard<std::mutex> l(m_tasksMutex);
+    m_taskQueue.clear();
+    m_timedTasks.clear();
 }
 
 }
