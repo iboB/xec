@@ -10,9 +10,10 @@ icm_add_lib(xec XEC
     ThreadName.cpp
 )
 
+add_library(xec::xec ALIAS xec)
 target_include_directories(xec INTERFACE ..)
 target_link_libraries(xec PUBLIC
     ${CMAKE_THREAD_LIBS_INIT}
-    splat
-    itlib
+    splat::splat
+    itlib::itlib
 )
