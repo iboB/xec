@@ -1,3 +1,6 @@
+# Copyright (c) Borislav Stanimirov
+# SPDX-License-Identifier: MIT
+#
 icm_add_lib(xec XEC
     ExecutionContext.hpp
     ExecutorBase.cpp
