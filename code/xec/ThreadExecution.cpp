@@ -145,7 +145,6 @@ void ThreadExecution::joinThread()
     if (m_thread.joinable())
     {
         m_thread.join();
-        m_executor.finalize();
     }
 }
 
@@ -162,6 +161,7 @@ void ThreadExecution::thread()
         m_context->wait();
         m_executor.update();
     }
+    m_executor.finalize();
 }
 
 }
