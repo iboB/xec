@@ -9,6 +9,8 @@ icm_add_lib(xec XEC
     TaskExecutor.hpp
     ThreadExecution.cpp
     ThreadExecution.hpp
+    PoolExecution.cpp
+    PoolExecution.hpp
     ThreadName.hpp
     ThreadName.cpp
 )
