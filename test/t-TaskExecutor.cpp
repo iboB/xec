@@ -72,10 +72,10 @@ struct AddIdToCounterTask : TaskExecutorExampleTask {
 };
 
 class NoopExecutionContext final : public xec::ExecutionContext {
-    virtual void wakeUpNow(xec::ExecutorBase&) override {}
-    virtual void stop(xec::ExecutorBase&) override {}
-    virtual void scheduleNextWakeUp(xec::ExecutorBase&, std::chrono::milliseconds) override {}
-    virtual void unscheduleNextWakeUp(xec::ExecutorBase&) override {}
+    virtual void wakeUpNow() override {}
+    virtual void stop() override {}
+    virtual void scheduleNextWakeUp(std::chrono::milliseconds) override {}
+    virtual void unscheduleNextWakeUp() override {}
 };
 
 struct TestThread final : public xec::ExecutorBase {
@@ -83,7 +83,7 @@ struct TestThread final : public xec::ExecutorBase {
         : m_executor(executor)
         , m_execution(*this)
     {
-        m_executor.setExecutionContext(std::make_shared<NoopExecutionContext>());
+        m_executor.setExecutionContext(std::make_unique<NoopExecutionContext>());
         m_execution.launchThread();
     }
 

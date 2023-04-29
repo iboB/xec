@@ -16,7 +16,7 @@ ThreadExecutionContext::ThreadExecutionContext()
     , m_hasWork(true)
 {}
 
-void ThreadExecutionContext::stop(ExecutorBase&) {
+void ThreadExecutionContext::stop() {
     m_running = false;
     wakeUpNow();
 }
@@ -29,10 +29,6 @@ void ThreadExecutionContext::wakeUpNow() {
     m_workCV.notify_one();
 }
 
-void ThreadExecutionContext::wakeUpNow(ExecutorBase&) {
-    wakeUpNow();
-}
-
 void ThreadExecutionContext::scheduleNextWakeUp(std::chrono::milliseconds timeFromNow) {
     {
         std::lock_guard<std::mutex> lk(m_workMutex);
@@ -41,20 +37,12 @@ void ThreadExecutionContext::scheduleNextWakeUp(std::chrono::milliseconds timeFr
     m_workCV.notify_one();
 }
 
-void ThreadExecutionContext::scheduleNextWakeUp(ExecutorBase&, std::chrono::milliseconds timeFromNow) {
-    scheduleNextWakeUp(timeFromNow);
-}
-
 void ThreadExecutionContext::unscheduleNextWakeUp() {
     {
         std::lock_guard<std::mutex> lk(m_workMutex);
         m_scheduledWakeUpTime.reset();
     }
     m_workCV.notify_one();
-}
-
-void ThreadExecutionContext::unscheduleNextWakeUp(ExecutorBase&) {
-    unscheduleNextWakeUp();
 }
 
 void ThreadExecutionContext::wait() {
@@ -96,19 +84,13 @@ void ThreadExecutionContext::wait() {
     }
 }
 
-ThreadExecution::ThreadExecution(ExecutorBase& e, std::shared_ptr<ThreadExecutionContext> execution)
-    : m_executor(e)
-    , m_context(std::move(execution))
-{
-    // check if the execution context is not alreay set
-    if (m_executor.executionContext() != m_context) {
-        m_executor.setExecutionContext(m_context);
-    }
-}
-
 ThreadExecution::ThreadExecution(ExecutorBase& e)
-    : ThreadExecution(e, std::make_shared<ThreadExecutionContext>())
-{}
+    : m_executor(e)
+{
+    auto ctx = std::make_unique<ThreadExecutionContext>();
+    m_context = ctx.get();
+    m_executor.setExecutionContext(std::move(ctx));
+}
 
 ThreadExecution::~ThreadExecution() {
     stopAndJoinThread();

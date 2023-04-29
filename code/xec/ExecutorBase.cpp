@@ -15,12 +15,12 @@ auto tnow() { return std::chrono::steady_clock::now(); }
 
 class ExecutorBase::InitialContext : public ExecutionContext {
 public:
-    virtual void wakeUpNow(ExecutorBase&) override { m_wakeUpNow = true; }
-    virtual void stop(ExecutorBase&) override { m_stop = true; }
-    virtual void scheduleNextWakeUp(ExecutorBase&, std::chrono::milliseconds timeFromNow) override {
+    virtual void wakeUpNow() override { m_wakeUpNow = true; }
+    virtual void stop() override { m_stop = true; }
+    virtual void scheduleNextWakeUp(std::chrono::milliseconds timeFromNow) override {
         m_scheduledWakeUpTime = tnow() + timeFromNow;
     }
-    virtual void unscheduleNextWakeUp(ExecutorBase&) override {
+    virtual void unscheduleNextWakeUp() override {
         m_scheduledWakeUpTime.reset();
     }
 
@@ -55,37 +55,37 @@ public:
 };
 
 ExecutorBase::ExecutorBase()
-    : m_executionContext(std::make_shared<InitialContext>())
+    : m_executionContext(std::make_unique<InitialContext>())
     , m_initialContext(static_cast<InitialContext*>(m_executionContext.get()))
 {}
 
-ExecutorBase::ExecutorBase(std::shared_ptr<ExecutionContext> context)
+ExecutorBase::ExecutorBase(std::unique_ptr<ExecutionContext> context)
     : m_executionContext(std::move(context))
 {}
 
 ExecutorBase::~ExecutorBase() = default;
 
-void ExecutorBase::setExecutionContext(std::shared_ptr<ExecutionContext> context) {
+void ExecutorBase::setExecutionContext(std::unique_ptr<ExecutionContext> context) {
     assert(m_executionContext.get() == m_initialContext);
-    auto keep = m_executionContext; // keep initial context alive for the transfer
+    auto keep = std::move(m_executionContext); // keep initial context alive for the transfer
     m_executionContext = std::move(context);
     m_initialContext->transfer(*this);
 }
 
 void ExecutorBase::wakeUpNow() {
-    m_executionContext->wakeUpNow(*this);
+    m_executionContext->wakeUpNow();
 }
 
 void ExecutorBase::scheduleNextWakeUp(std::chrono::milliseconds timeFromNow) {
-    m_executionContext->scheduleNextWakeUp(*this, timeFromNow);
+    m_executionContext->scheduleNextWakeUp(timeFromNow);
 }
 
 void ExecutorBase::unscheduleNextWakeUp() {
-    m_executionContext->unscheduleNextWakeUp(*this);
+    m_executionContext->unscheduleNextWakeUp();
 }
 
 void ExecutorBase::stop() {
-    m_executionContext->stop(*this);
+    m_executionContext->stop();
 }
 
 // export ExecutionContext vtable;

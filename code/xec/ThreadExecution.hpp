@@ -10,7 +10,6 @@
 #include <thread>
 #include <string_view>
 #include <optional>
-#include <memory>
 
 namespace xec
 {
@@ -23,21 +22,18 @@ public:
     // run status
     // both funcs are safe to call from any thread
     bool running() const { return m_running; }
-    virtual void stop(ExecutorBase& e) override;
+    virtual void stop() override;
 
     // wakes up from waiting
     // safe to call from any thread
     // safe to call no matter if the executable is waiting or not
-    void wakeUpNow();
-    virtual void wakeUpNow(ExecutorBase& e) override;
+    void wakeUpNow() override;
 
     // shedule a wake up
     // safe to call from any thread
     // safe to call no matter if the executable is waiting or not
-    void scheduleNextWakeUp(std::chrono::milliseconds timeFromNow);
-    virtual void scheduleNextWakeUp(ExecutorBase& e, std::chrono::milliseconds timeFromNow) override;
-    void unscheduleNextWakeUp();
-    virtual void unscheduleNextWakeUp(ExecutorBase& e) override;
+    void scheduleNextWakeUp(std::chrono::milliseconds timeFromNow) override;
+    void unscheduleNextWakeUp() override;
 
     // call at the beginning of each frame
     // will block until woken up
@@ -55,7 +51,6 @@ private:
 
 class XEC_API ThreadExecution
 {
-    ThreadExecution(ExecutorBase& e, std::shared_ptr<ThreadExecutionContext> execution);
 public:
     // call the following on the main thread
     ThreadExecution(ExecutorBase& e);
@@ -68,7 +63,7 @@ public:
     std::thread::id threadId() const { return m_thread.get_id(); }
 private:
     ExecutorBase& m_executor;
-    std::shared_ptr<ThreadExecutionContext> m_context;
+    ThreadExecutionContext* m_context = nullptr;
     std::thread m_thread;
 
     // NOT MAIN THREAD
