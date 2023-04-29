@@ -3,7 +3,7 @@
 #
 include(icm_testing)
 
-CPMAddPackage(gh:iboB/doctest-util@0.0.5)
+CPMAddPackage(gh:iboB/doctest-util@0.1.1)
 
 macro(xec_test test)
     add_doctest_lib_test(${test} xec ${ARGN})
