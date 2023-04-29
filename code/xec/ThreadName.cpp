@@ -15,11 +15,9 @@ using tid = HANDLE;
 using tid = pthread_t;
 #endif
 
-namespace xec
-{
+namespace xec {
 
-namespace
-{
+namespace {
 int doSetName(tid h, std::string_view name) {
     // max length for thread names with pthread is 16 symbols
     // even though we don't have the same limitation on Widows, we assert anyway for multiplatofm-ness
@@ -56,15 +54,13 @@ int doSetName(tid h, std::string_view name) {
 #endif
 }
 
-std::string doGetName(tid h)
-{
+std::string doGetName(tid h) {
     std::string name;
 #if defined(_WIN32)
     PWSTR desc = nullptr;
     if (FAILED(GetThreadDescription(h, &desc))) return {};
     auto p = desc;
-    while (*p)
-    {
+    while (*p) {
         name.push_back(char(*p));
         ++p;
     }
@@ -78,13 +74,11 @@ std::string doGetName(tid h)
 }
 }
 
-int SetThreadName(std::thread& t, std::string_view name)
-{
+int SetThreadName(std::thread& t, std::string_view name) {
     return doSetName(t.native_handle(), name);
 }
 
-int SetThisThreadName(std::string_view name)
-{
+int SetThisThreadName(std::string_view name) {
 #if defined(_WIN32)
     return doSetName(GetCurrentThread(), name);
 #else
@@ -92,13 +86,11 @@ int SetThisThreadName(std::string_view name)
 #endif
 }
 
-std::string GetThreadName(std::thread& t)
-{
+std::string GetThreadName(std::thread& t) {
     return doGetName(t.native_handle());
 }
 
-std::string GetThisThreadName()
-{
+std::string GetThisThreadName() {
 #if defined(_WIN32)
     return doGetName(GetCurrentThread());
 #else

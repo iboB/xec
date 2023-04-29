@@ -14,36 +14,29 @@ TEST_SUITE_BEGIN("TaskExecutor");
 
 struct TestThread;
 
-class TaskExecutorExample : public xec::TaskExecutor
-{
+class TaskExecutorExample : public xec::TaskExecutor {
 public:
-    TaskExecutorExample()
-    {
+    TaskExecutorExample() {
         m_testThread = std::make_unique<TestThread>(*this);
     }
 
-    void incrementCounter()
-    {
+    void incrementCounter() {
         ++m_counter;
     }
 
-    void decrementCounter()
-    {
+    void decrementCounter() {
         --m_counter;
     }
 
-    void addToCounter(uint32_t adder)
-    {
+    void addToCounter(uint32_t adder) {
         m_counter += adder;
     }
 
-    int counter() const
-    {
+    int counter() const {
         return m_counter;
     }
 
-    TestThread* testThread() const
-    {
+    TestThread* testThread() const {
         return m_testThread.get();
     }
 private:
@@ -51,50 +44,41 @@ private:
     std::unique_ptr<TestThread> m_testThread;
 };
 
-struct TaskExecutorExampleTask
-{
+struct TaskExecutorExampleTask {
     TaskExecutorExampleTask(TaskExecutorExample& ee) : e(&ee) {};
     TaskExecutorExample* e;
 };
 
-struct IncrementCounterTask : TaskExecutorExampleTask
-{
+struct IncrementCounterTask : TaskExecutorExampleTask {
     using TaskExecutorExampleTask::TaskExecutorExampleTask;
-    void operator()()
-    {
+    void operator()() {
         e->incrementCounter();
     }
 };
 
-struct DecrementCounterTask : TaskExecutorExampleTask
-{
+struct DecrementCounterTask : TaskExecutorExampleTask {
     using TaskExecutorExampleTask::TaskExecutorExampleTask;
-    void operator()()
-    {
+    void operator()() {
         e->decrementCounter();
     }
 };
 
-struct AddIdToCounterTask : TaskExecutorExampleTask
-{
+struct AddIdToCounterTask : TaskExecutorExampleTask {
     using TaskExecutorExampleTask::TaskExecutorExampleTask;
     std::shared_ptr<xec::TaskExecutor::task_id> id;
-    void operator()()
-    {
+    void operator()() {
         e->addToCounter(uint32_t(*id));
     }
 };
 
-class NoopExecutionContext final : public xec::ExecutionContext
-{
+class NoopExecutionContext final : public xec::ExecutionContext {
     virtual void wakeUpNow(xec::ExecutorBase&) override {}
     virtual void stop(xec::ExecutorBase&) override {}
     virtual void scheduleNextWakeUp(xec::ExecutorBase&, std::chrono::milliseconds) override {}
     virtual void unscheduleNextWakeUp(xec::ExecutorBase&) override {}
 };
 
-struct TestThread final : public xec::ExecutorBase
-{
+struct TestThread final : public xec::ExecutorBase {
     explicit TestThread(TaskExecutorExample& executor)
         : m_executor(executor)
         , m_execution(*this)
@@ -105,8 +89,7 @@ struct TestThread final : public xec::ExecutorBase
 
     virtual ~TestThread() = default;
 
-    virtual void update() override
-    {
+    virtual void update() override {
         m_executor.update();
         {
             std::lock_guard<std::mutex> l(m_finishedUpdateMutex);
@@ -115,8 +98,7 @@ struct TestThread final : public xec::ExecutorBase
         m_finishedUpdateCV.notify_one();
     }
 
-    void waitForFinishedUpdate()
-    {
+    void waitForFinishedUpdate() {
         std::unique_lock<std::mutex> l(m_finishedUpdateMutex);
         m_finishedUpdateCV.wait(l, [this]() { return m_hasFinishedUpdate; });
         m_hasFinishedUpdate = false;
@@ -131,8 +113,7 @@ struct TestThread final : public xec::ExecutorBase
     xec::ThreadExecution m_execution;
 };
 
-static uint32_t generateRandomNumber()
-{
+static uint32_t generateRandomNumber() {
     static std::random_device rd;
     static std::mt19937 mt(rd());
     static std::uniform_int_distribution<uint32_t> dist(1, 100);
@@ -140,14 +121,12 @@ static uint32_t generateRandomNumber()
     return dist(mt);
 }
 
-static std::vector<xec::TaskExecutor::task_id> pushIdTasks(TaskExecutorExample& executor, uint32_t taskCount, xec::TaskExecutor::task_ctoken ctoken)
-{
+static std::vector<xec::TaskExecutor::task_id> pushIdTasks(TaskExecutorExample& executor, uint32_t taskCount, xec::TaskExecutor::task_ctoken ctoken) {
     std::vector<xec::TaskExecutor::task_id> taskIds(taskCount);
 
     {
         auto taskLocker = executor.taskLocker();
-        for (uint32_t i = 0; i < taskCount; ++i)
-        {
+        for (uint32_t i = 0; i < taskCount; ++i) {
             auto id = std::make_shared<xec::TaskExecutor::task_id>();
             AddIdToCounterTask task(executor);
             task.id = id;
@@ -161,17 +140,14 @@ static std::vector<xec::TaskExecutor::task_id> pushIdTasks(TaskExecutorExample& 
 
 
 template <typename TaskType>
-static void pushTasks(TaskExecutorExample& executor, uint32_t taskCount)
-{
+static void pushTasks(TaskExecutorExample& executor, uint32_t taskCount) {
     auto taskLocker = executor.taskLocker();
-    for (uint32_t i = 0; i < taskCount; ++i)
-    {
+    for (uint32_t i = 0; i < taskCount; ++i) {
         taskLocker.pushTask(TaskType(executor));
     }
 }
 
-TEST_CASE("pushTask")
-{
+TEST_CASE("pushTask") {
     const auto taskCount = generateRandomNumber();
     TaskExecutorExample executor;
 
@@ -196,13 +172,11 @@ TEST_CASE("pushTask")
     CHECK(executor.counter() == taskCount);
 }
 
-static uint32_t sumIds(const std::vector<xec::TaskExecutor::task_id>& ids)
-{
+static uint32_t sumIds(const std::vector<xec::TaskExecutor::task_id>& ids) {
     return std::accumulate(ids.begin(), ids.end(), uint32_t(0));
 }
 
-TEST_CASE("cancelTask")
-{
+TEST_CASE("cancelTask") {
     const auto taskCount = generateRandomNumber();
     TaskExecutorExample executor;
 
@@ -219,8 +193,7 @@ TEST_CASE("cancelTask")
     REQUIRE(executor.counter() == expectedSum);
 }
 
-TEST_CASE("cancelTasksWithToken")
-{
+TEST_CASE("cancelTasksWithToken") {
     TaskExecutorExample executor;
 
     executor.testThread()->waitForFinishedUpdate();
@@ -243,8 +216,7 @@ TEST_CASE("cancelTasksWithToken")
     REQUIRE(executor.counter() == expectedSum);
 }
 
-TEST_CASE("byPush")
-{
+TEST_CASE("byPush") {
     TaskExecutorExample executor;
 
     executor.testThread()->waitForFinishedUpdate();
@@ -277,8 +249,7 @@ TEST_CASE("byPush")
 }
 
 
-class TestThreadFinish : public xec::TaskExecutor
-{
+class TestThreadFinish : public xec::TaskExecutor {
 public:
     explicit TestThreadFinish(bool execOnFinish)
         : m_execution(*this)
@@ -286,8 +257,7 @@ public:
         m_execution.launchThread();
         setFinishTasksOnExit(execOnFinish);
     }
-    ~TestThreadFinish()
-    {
+    ~TestThreadFinish() {
         m_mutex.unlock();
     }
     std::mutex m_mutex;
@@ -337,16 +307,14 @@ TEST_CASE("initial context") {
     te.pushTask([&i]() { ++i; });
     te.pushTask([&te]() { te.stop(); });
 
-    SUBCASE("run tasks")
-    {
+    SUBCASE("run tasks") {
         xec::ThreadExecution exec(te);
         exec.launchThread();
         exec.joinThread();
         CHECK(i == 2);
     }
 
-    SUBCASE("stop")
-    {
+    SUBCASE("stop") {
         xec::ThreadExecution exec(te);
         te.stop();
         exec.launchThread();

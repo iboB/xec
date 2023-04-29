@@ -9,22 +9,19 @@
 #include <cassert>
 #include <functional>
 
-namespace xec
-{
+namespace xec {
 
 ThreadExecutionContext::ThreadExecutionContext()
     : m_running(true)
     , m_hasWork(true)
 {}
 
-void ThreadExecutionContext::stop(ExecutorBase&)
-{
+void ThreadExecutionContext::stop(ExecutorBase&) {
     m_running = false;
     wakeUpNow();
 }
 
-void ThreadExecutionContext::wakeUpNow()
-{
+void ThreadExecutionContext::wakeUpNow() {
     {
         std::lock_guard<std::mutex> lk(m_workMutex);
         m_hasWork = true;
@@ -32,13 +29,11 @@ void ThreadExecutionContext::wakeUpNow()
     m_workCV.notify_one();
 }
 
-void ThreadExecutionContext::wakeUpNow(ExecutorBase&)
-{
+void ThreadExecutionContext::wakeUpNow(ExecutorBase&) {
     wakeUpNow();
 }
 
-void ThreadExecutionContext::scheduleNextWakeUp(std::chrono::milliseconds timeFromNow)
-{
+void ThreadExecutionContext::scheduleNextWakeUp(std::chrono::milliseconds timeFromNow) {
     {
         std::lock_guard<std::mutex> lk(m_workMutex);
         m_scheduledWakeUpTime = std::chrono::steady_clock::now() + timeFromNow;
@@ -46,13 +41,11 @@ void ThreadExecutionContext::scheduleNextWakeUp(std::chrono::milliseconds timeFr
     m_workCV.notify_one();
 }
 
-void ThreadExecutionContext::scheduleNextWakeUp(ExecutorBase&, std::chrono::milliseconds timeFromNow)
-{
+void ThreadExecutionContext::scheduleNextWakeUp(ExecutorBase&, std::chrono::milliseconds timeFromNow) {
     scheduleNextWakeUp(timeFromNow);
 }
 
-void ThreadExecutionContext::unscheduleNextWakeUp()
-{
+void ThreadExecutionContext::unscheduleNextWakeUp() {
     {
         std::lock_guard<std::mutex> lk(m_workMutex);
         m_scheduledWakeUpTime.reset();
@@ -60,31 +53,25 @@ void ThreadExecutionContext::unscheduleNextWakeUp()
     m_workCV.notify_one();
 }
 
-void ThreadExecutionContext::unscheduleNextWakeUp(ExecutorBase&)
-{
+void ThreadExecutionContext::unscheduleNextWakeUp(ExecutorBase&) {
     unscheduleNextWakeUp();
 }
 
-void ThreadExecutionContext::wait()
-{
+void ThreadExecutionContext::wait() {
     std::unique_lock<std::mutex> lock(m_workMutex);
 
-    while (true)
-    {
-        if (m_hasWork)
-        {
+    while (true) {
+        if (m_hasWork) {
             m_hasWork = false;
             m_scheduledWakeUpTime.reset(); // forget about scheduling wakeup if we were woken up with work to do
             return;
         }
 
-        if (m_scheduledWakeUpTime)
-        {
+        if (m_scheduledWakeUpTime) {
             // wait until if we have a wake up time, wait for it
             auto status = m_workCV.wait_until(lock, *m_scheduledWakeUpTime);
 
-            if (status == std::cv_status::timeout)
-            {
+            if (status == std::cv_status::timeout) {
                 // timeout => hasWork
                 m_hasWork = true;
                 m_scheduledWakeUpTime.reset(); // timer was consumed
@@ -99,8 +86,7 @@ void ThreadExecutionContext::wait()
             // it may also be the case tha we've been woken up by unschedule
             // in this case we loop again and will wait indefinitely
         }
-        else
-        {
+        else {
             // wait indefinitely
             // when we wake up we either have work and will return
             // or will have a scheduled wake up time and will wait for it
@@ -115,8 +101,7 @@ ThreadExecution::ThreadExecution(ExecutorBase& e, std::shared_ptr<ThreadExecutio
     , m_context(std::move(execution))
 {
     // check if the execution context is not alreay set
-    if (m_executor.executionContext() != m_context)
-    {
+    if (m_executor.executionContext() != m_context) {
         m_executor.setExecutionContext(m_context);
     }
 }
@@ -125,39 +110,31 @@ ThreadExecution::ThreadExecution(ExecutorBase& e)
     : ThreadExecution(e, std::make_shared<ThreadExecutionContext>())
 {}
 
-ThreadExecution::~ThreadExecution()
-{
+ThreadExecution::~ThreadExecution() {
     stopAndJoinThread();
 }
 
-void ThreadExecution::launchThread(std::optional<std::string_view> threadName)
-{
+void ThreadExecution::launchThread(std::optional<std::string_view> threadName) {
     assert(!m_thread.joinable()); // we have an active thread???
     m_thread = std::thread(std::bind(&ThreadExecution::thread, this));
-    if (threadName)
-    {
+    if (threadName) {
         SetThreadName(m_thread, *threadName);
     }
 }
 
-void ThreadExecution::joinThread()
-{
-    if (m_thread.joinable())
-    {
+void ThreadExecution::joinThread() {
+    if (m_thread.joinable()) {
         m_thread.join();
     }
 }
 
-void ThreadExecution::stopAndJoinThread()
-{
+void ThreadExecution::stopAndJoinThread() {
     m_executor.stop();
     joinThread();
 }
 
-void ThreadExecution::thread()
-{
-    while(m_context->running())
-    {
+void ThreadExecution::thread() {
+    while(m_context->running()) {
         m_context->wait();
         m_executor.update();
     }

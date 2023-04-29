@@ -9,15 +9,13 @@
 
 TEST_SUITE_BEGIN("TaskScheduling");
 
-class Executor : public xec::TaskExecutor
-{
+class Executor : public xec::TaskExecutor {
 public:
     Executor() : e(*this) {
         e.launchThread();
     }
 
-    virtual void update() override
-    {
+    virtual void update() override {
         xec::TaskExecutor::update();
         ++numUpdates;
     }
@@ -26,48 +24,39 @@ public:
     xec::ThreadExecution e;
 };
 
-struct TaskStatus
-{
+struct TaskStatus {
     int32_t t1 = 0;
     int32_t t2 = 0;
     std::atomic_int32_t t3 = 0;
 };
 
-struct Task
-{
+struct Task {
     Task(TaskStatus& s) : status(s) {}
     TaskStatus& status;
 };
 
-struct Task1 : public Task
-{
+struct Task1 : public Task {
     using Task::Task;
-    void operator()()
-    {
+    void operator()() {
         ++status.t1;
     }
 };
 
-struct Task2 : public Task
-{
+struct Task2 : public Task {
     using Task::Task;
-    void operator()()
-    {
+    void operator()() {
         ++status.t2;
     }
 };
 
-struct Task3 : public Task
-{
+struct Task3 : public Task {
     using Task::Task;
-    void operator()()
-    {
+    void operator()() {
         ++status.t3;
     }
 };
 
-TEST_CASE("Too late")
-{
+TEST_CASE("Too late") {
     Executor xec;
     TaskStatus status;
     xec.setFinishTasksOnExit(true);
@@ -84,8 +73,7 @@ TEST_CASE("Too late")
     CHECK(status.t3 == 0);
 }
 
-TEST_CASE("Execute")
-{
+TEST_CASE("Execute") {
     Executor xec;
     TaskStatus status;
     xec.setFinishTasksOnExit(true);
@@ -109,8 +97,7 @@ TEST_CASE("Execute")
     CHECK(status.t3 == 1);
 }
 
-TEST_CASE("reschedule")
-{
+TEST_CASE("reschedule") {
     Executor xec;
     TaskStatus status;
     xec.setFinishTasksOnExit(true);

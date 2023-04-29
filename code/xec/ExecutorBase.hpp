@@ -7,13 +7,11 @@
 #include <chrono>
 #include <memory>
 
-namespace xec
-{
+namespace xec {
 
 class ExecutionContext;
 
-class XEC_API ExecutorBase
-{
+class XEC_API ExecutorBase {
 public:
     ExecutorBase();
     ExecutorBase(std::shared_ptr<ExecutionContext> context);

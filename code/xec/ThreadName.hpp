@@ -8,8 +8,7 @@
 #include <string_view>
 #include <string>
 
-namespace xec
-{
+namespace xec {
 // Debug helpers which give names to threads so that they are easily identifiable in the debugger
 // Return 0 on success, non-zero otherwise
 XEC_API int SetThreadName(std::thread& t, std::string_view name);

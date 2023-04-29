@@ -12,11 +12,9 @@
 #include <vector>
 #include <queue>
 
-namespace xec
-{
+namespace xec {
 
-class XEC_API TaskExecutor : public ExecutorBase
-{
+class XEC_API TaskExecutor : public ExecutorBase {
 public:
     // When scheduling tasks we use minTimeToSchedule to decide whether to schedule the task for later
     // or to execute it right away
@@ -34,34 +32,27 @@ public:
     using task_id = uint32_t;
     using task_ctoken = uint32_t; // cancellation token
 
-    class TaskLocker
-    {
+    class TaskLocker {
     public:
-        explicit TaskLocker(TaskExecutor* e) : m_executor(e)
-        {
+        explicit TaskLocker(TaskExecutor* e) : m_executor(e) {
             e->lockTasks();
         }
         TaskLocker(const TaskLocker&) = delete;
         TaskLocker& operator=(const TaskLocker&) = delete;
-        TaskLocker(TaskLocker&& other) noexcept : m_executor(other.m_executor)
-        {
+        TaskLocker(TaskLocker&& other) noexcept : m_executor(other.m_executor) {
             other.m_executor = nullptr;
         }
         TaskLocker& operator=(TaskLocker&& other) noexcept = delete;
-        ~TaskLocker()
-        {
+        ~TaskLocker() {
             if (m_executor) m_executor->unlockTasks();
         }
-        task_id pushTask(Task task, task_ctoken ownToken = 0, task_ctoken tasksToCancelToken = 0)
-        {
+        task_id pushTask(Task task, task_ctoken ownToken = 0, task_ctoken tasksToCancelToken = 0) {
             return m_executor->pushTaskL(std::move(task), ownToken, tasksToCancelToken);
         }
-        task_id scheduleTask(std::chrono::milliseconds timeFromNow, Task task, task_ctoken ownToken = 0, task_ctoken tasksToCancelToken = 0)
-        {
+        task_id scheduleTask(std::chrono::milliseconds timeFromNow, Task task, task_ctoken ownToken = 0, task_ctoken tasksToCancelToken = 0) {
             return m_executor->scheduleTaskL(timeFromNow, std::move(task), ownToken, tasksToCancelToken);
         }
-        bool rescheduleTask(std::chrono::milliseconds timeFromNow, task_id id)
-        {
+        bool rescheduleTask(std::chrono::milliseconds timeFromNow, task_id id) {
             return m_executor->rescheduleTaskL(timeFromNow, id);
         }
     private:
@@ -69,18 +60,15 @@ public:
     };
     TaskLocker taskLocker() { return TaskLocker(this); }
 
-    task_id pushTask(Task task, task_ctoken ownToken = 0, task_ctoken tasksToCancelToken = 0)
-    {
+    task_id pushTask(Task task, task_ctoken ownToken = 0, task_ctoken tasksToCancelToken = 0) {
         return taskLocker().pushTask(std::move(task), ownToken, tasksToCancelToken);
     }
 
-    task_id scheduleTask(std::chrono::milliseconds timeFromNow, Task task, task_ctoken ownToken = 0, task_ctoken tasksToCancelToken = 0)
-    {
+    task_id scheduleTask(std::chrono::milliseconds timeFromNow, Task task, task_ctoken ownToken = 0, task_ctoken tasksToCancelToken = 0) {
         return taskLocker().scheduleTask(timeFromNow, std::move(task), ownToken, tasksToCancelToken);
     }
 
-    bool rescheduleTask(std::chrono::milliseconds timeFromNow, task_id id)
-    {
+    bool rescheduleTask(std::chrono::milliseconds timeFromNow, task_id id) {
         return taskLocker().rescheduleTask(timeFromNow, id);
     }
 
@@ -123,8 +111,7 @@ private:
     task_id m_freeTaskId = 0;
     task_id getNextTaskId();
 
-    struct TaskWithId
-    {
+    struct TaskWithId {
         Task task;
         task_id id;
         task_ctoken ctoken;
@@ -141,13 +128,10 @@ private:
     void fillExecutingTasksL();
     void executeTasks();
 
-    struct TimedTaskWithId : public TaskWithId
-    {
+    struct TimedTaskWithId : public TaskWithId {
         std::chrono::steady_clock::time_point time;
-        struct Later
-        {
-            bool operator()(const TimedTaskWithId& a, const TimedTaskWithId& b)
-            {
+        struct Later {
+            bool operator()(const TimedTaskWithId& a, const TimedTaskWithId& b) {
                 return a.time > b.time;
             }
         };

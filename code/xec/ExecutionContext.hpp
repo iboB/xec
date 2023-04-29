@@ -6,13 +6,11 @@
 
 #include <chrono>
 
-namespace xec
-{
+namespace xec {
 
 class ExecutorBase;
 
-class XEC_API ExecutionContext
-{
+class XEC_API ExecutionContext {
 public:
     virtual ~ExecutionContext(); // defined in ExecutorBase.cpp, not here but in a cpp so as to export the vtable
 

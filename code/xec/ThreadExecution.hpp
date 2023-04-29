@@ -55,10 +55,10 @@ private:
 
 class XEC_API ThreadExecution
 {
+    ThreadExecution(ExecutorBase& e, std::shared_ptr<ThreadExecutionContext> execution);
 public:
     // call the following on the main thread
     ThreadExecution(ExecutorBase& e);
-    ThreadExecution(ExecutorBase& e, std::shared_ptr<ThreadExecutionContext> execution);
     ~ThreadExecution();
 
     void launchThread(std::optional<std::string_view> threadName = std::nullopt);
