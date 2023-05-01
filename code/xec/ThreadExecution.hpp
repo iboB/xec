@@ -21,7 +21,7 @@ public:
 
     // run status
     // both funcs are safe to call from any thread
-    bool running() const { return m_running; }
+    virtual bool running() const override { return m_running; }
     virtual void stop() override;
 
     // wakes up from waiting
@@ -40,10 +40,10 @@ public:
     void wait();
 
 private:
-    std::atomic_bool m_running = false;
+    std::atomic_bool m_running;
 
     // wait state
-    bool m_hasWork = false;
+    bool m_hasWork;
     std::optional<std::chrono::steady_clock::time_point> m_scheduledWakeUpTime;
     std::condition_variable m_workCV;
     std::mutex m_workMutex;

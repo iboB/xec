@@ -25,6 +25,9 @@ public:
 
     // called by the executor when it determines that it wants to be stopped
     virtual void stop() = 0;
+
+    // check if context is running
+    virtual bool running() const = 0;
 };
 
 }

@@ -16,6 +16,7 @@ auto tnow() { return std::chrono::steady_clock::now(); }
 class ExecutorBase::InitialContext : public ExecutionContext {
 public:
     virtual void wakeUpNow() override { m_wakeUpNow = true; }
+    virtual bool running() const override { return !m_stop; }
     virtual void stop() override { m_stop = true; }
     virtual void scheduleNextWakeUp(std::chrono::milliseconds timeFromNow) override {
         m_scheduledWakeUpTime = tnow() + timeFromNow;
