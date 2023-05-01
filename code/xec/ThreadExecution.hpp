@@ -11,11 +11,9 @@
 #include <string_view>
 #include <optional>
 
-namespace xec
-{
+namespace xec {
 
-class XEC_API ThreadExecutionContext final : public ExecutionContext
-{
+class XEC_API ThreadExecutionContext final : public ExecutionContext {
 public:
     ThreadExecutionContext();
 
@@ -49,8 +47,16 @@ private:
     std::mutex m_workMutex;
 };
 
-class XEC_API ThreadExecution
-{
+class XEC_API LocalExecution {
+public:
+    LocalExecution(ExecutorBase& e);
+    void run();
+protected:
+    ExecutorBase& m_executor;
+    ThreadExecutionContext* m_context = nullptr;
+};
+
+class XEC_API ThreadExecution : private LocalExecution {
 public:
     // call the following on the main thread
     ThreadExecution(ExecutorBase& e);
@@ -62,10 +68,7 @@ public:
 
     std::thread::id threadId() const { return m_thread.get_id(); }
 private:
-    ExecutorBase& m_executor;
-    ThreadExecutionContext* m_context = nullptr;
     std::thread m_thread;
-
     // NOT MAIN THREAD
     void thread();
 };

@@ -84,13 +84,25 @@ void ThreadExecutionContext::wait() {
     }
 }
 
-ThreadExecution::ThreadExecution(ExecutorBase& e)
+LocalExecution::LocalExecution(ExecutorBase& e)
     : m_executor(e)
 {
     auto ctx = std::make_unique<ThreadExecutionContext>();
     m_context = ctx.get();
     m_executor.setExecutionContext(std::move(ctx));
 }
+
+void LocalExecution::run() {
+    while (m_context->running()) {
+        m_context->wait();
+        m_executor.update();
+    }
+    m_executor.finalize();
+}
+
+ThreadExecution::ThreadExecution(ExecutorBase& e)
+    : LocalExecution(e)
+{}
 
 ThreadExecution::~ThreadExecution() {
     stopAndJoinThread();
@@ -116,11 +128,7 @@ void ThreadExecution::stopAndJoinThread() {
 }
 
 void ThreadExecution::thread() {
-    while(m_context->running()) {
-        m_context->wait();
-        m_executor.update();
-    }
-    m_executor.finalize();
+    LocalExecution::run();
 }
 
 }
