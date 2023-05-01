@@ -14,7 +14,7 @@
 namespace xec {
 class ExecutorBase;
 
-class XEC_API PoolExecutionContext : public ExecutionContext {
+class PoolExecutionContext : public ExecutionContext {
 public:
     // run status
     // both funcs are safe to call from any thread
@@ -36,7 +36,7 @@ private:
     std::atomic_bool m_running = false;
 };
 
-class XEC_API PoolExecution {
+class PoolExecution {
 public:
     PoolExecution(uint32_t numThreads);
     ~PoolExecution();
