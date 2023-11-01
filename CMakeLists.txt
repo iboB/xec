@@ -12,7 +12,7 @@ include(./get_cpm.cmake)
 
 #######################################
 # cmake lib
-CPMAddPackage(gh:iboB/icm@1.4.5)
+CPMAddPackage(gh:iboB/icm@1.4.6)
 
 set(CMAKE_MODULE_PATH
     ${CMAKE_MODULE_PATH}
@@ -31,7 +31,7 @@ option(XEC_BUILD_TESTS "xec: build tests" ${ICM_DEV_MODE})
 #######################################
 # packages
 CPMAddPackage(gh:iboB/splat@1.3.1)
-CPMAddPackage(gh:iboB/itlib@1.9.2)
+CPMAddPackage(gh:iboB/itlib@1.10.0)
 
 find_package(Threads REQUIRED)
 
