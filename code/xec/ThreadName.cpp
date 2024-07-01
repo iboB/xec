@@ -46,7 +46,7 @@ int doSetName(tid h, std::string_view name) {
         return pthread_setname_np(name16);
     }
     else {
-        return 0; // nothing smart to do
+        return 1; // nothing smart to do, return error
     }
 #   else
     return pthread_setname_np(h, name16);
