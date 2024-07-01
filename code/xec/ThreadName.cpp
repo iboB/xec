@@ -12,12 +12,23 @@
 #   include <Windows.h>
 using tid = HANDLE;
 #else
+#   if defined(__ANDROID__)
+#       include <sys/prctl.h>
+#   endif
 using tid = pthread_t;
 #endif
 
 namespace xec {
 
 namespace {
+bool isCurrentThread(tid h) {
+#if defined(_WIN32)
+    return h == GetCurrentThread();
+#else
+    return h == pthread_self();
+#endif
+}
+
 int doSetName(tid h, std::string_view name) {
     // max length for thread names with pthread is 16 symbols
     // even though we don't have the same limitation on Widows, we assert anyway for multiplatofm-ness
@@ -42,7 +53,7 @@ int doSetName(tid h, std::string_view name) {
     snprintf(name16, len, "%s", name.data());
 #   if defined(__APPLE__)
     // stupid macs not letting us rename any thread but only the current one
-    if (h == pthread_self()) {
+    if (isCurrentThread(h)) {
         return pthread_setname_np(name16);
     }
     else {
@@ -65,6 +76,17 @@ std::string doGetName(tid h) {
         ++p;
     }
     LocalFree(desc);
+#elif defined(__ANDROID__)
+    // andoird doesn't have pthread_getname_np so we need to resort to prctl
+    // unfortunately it only works for the calling thread
+    if (isCurrentThread(h)) {
+        char name16[16] = {};
+        prctl(PR_GET_NAME, name16);
+        name = name16;
+    }
+    else {
+        return {}; // nothing smart to do, return empty string
+    }
 #else
     char name16[17] = {};
     pthread_getname_np(h, name16, sizeof(name16));
