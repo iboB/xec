@@ -18,7 +18,7 @@ class PoolExecutionContext : public ExecutionContext {
 public:
     // run status
     // both funcs are safe to call from any thread
-    bool running() const { return m_running; }
+    bool running() const override { return m_running; }
     virtual void stop() override;
 
     // wakes up from waiting
