@@ -87,14 +87,12 @@ void ThreadExecutionContext::wait() {
 LocalExecution::LocalExecution(ExecutorBase& e)
     : m_executor(e)
 {
-    auto ctx = std::make_unique<ThreadExecutionContext>();
-    m_context = ctx.get();
-    m_executor.setExecutionContext(std::move(ctx));
+    m_executor.setExecutionContext(m_context);
 }
 
 void LocalExecution::run() {
-    while (m_context->running()) {
-        m_context->wait();
+    while (m_context.running()) {
+        m_context.wait();
         m_executor.update();
     }
     m_executor.finalize();

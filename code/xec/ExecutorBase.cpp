@@ -52,22 +52,21 @@ public:
 };
 
 ExecutorBase::ExecutorBase()
-    : m_executionContext(std::make_unique<InitialContext>())
-    , m_initialContext(static_cast<InitialContext*>(m_executionContext.get()))
+    : m_initialContext(new InitialContext)
+    , m_executionContext(m_initialContext.get())
 {}
 
-ExecutorBase::ExecutorBase(std::unique_ptr<ExecutionContext> context)
-    : m_executionContext(std::move(context))
+ExecutorBase::ExecutorBase(ExecutionContext& context)
+    : m_executionContext(&context)
 {}
 
 ExecutorBase::~ExecutorBase() = default;
 
-void ExecutorBase::setExecutionContext(std::unique_ptr<ExecutionContext> context) {
-    assert(m_executionContext.get() == m_initialContext);
-    auto keep = std::move(m_executionContext); // keep initial context alive for the transfer
-    m_executionContext = std::move(context);
+void ExecutorBase::setExecutionContext(ExecutionContext& context) {
+    assert(m_executionContext == m_initialContext.get());
+    m_executionContext = &context;
     m_initialContext->transfer(*this);
-    m_initialContext = nullptr;
+    m_initialContext.reset();
 }
 
 void ExecutorBase::wakeUpNow() {

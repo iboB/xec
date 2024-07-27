@@ -53,7 +53,7 @@ public:
     void run();
 protected:
     ExecutorBase& m_executor;
-    ThreadExecutionContext* m_context = nullptr;
+    ThreadExecutionContext m_context;
 };
 
 class XEC_API ThreadExecution : private LocalExecution {
