@@ -67,6 +67,7 @@ void ExecutorBase::setExecutionContext(std::unique_ptr<ExecutionContext> context
     auto keep = std::move(m_executionContext); // keep initial context alive for the transfer
     m_executionContext = std::move(context);
     m_initialContext->transfer(*this);
+    m_initialContext = nullptr;
 }
 
 void ExecutorBase::wakeUpNow() {
