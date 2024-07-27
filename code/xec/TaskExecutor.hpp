@@ -18,7 +18,7 @@ class XEC_API TaskExecutor : public ExecutorBase {
 public:
     // When scheduling tasks we use minTimeToSchedule to decide whether to schedule the task for later
     // or to execute it right away
-    TaskExecutor(std::chrono::milliseconds minTimeToSchedule = std::chrono::milliseconds(20));
+    explicit TaskExecutor(ms_t minTimeToSchedule = ms_t(20));
 
     virtual void update() override;
     virtual void finalize() override;
@@ -49,10 +49,10 @@ public:
         task_id pushTask(Task task, task_ctoken ownToken = 0, task_ctoken tasksToCancelToken = 0) {
             return m_executor->pushTaskL(std::move(task), ownToken, tasksToCancelToken);
         }
-        task_id scheduleTask(std::chrono::milliseconds timeFromNow, Task task, task_ctoken ownToken = 0, task_ctoken tasksToCancelToken = 0) {
+        task_id scheduleTask(ms_t timeFromNow, Task task, task_ctoken ownToken = 0, task_ctoken tasksToCancelToken = 0) {
             return m_executor->scheduleTaskL(timeFromNow, std::move(task), ownToken, tasksToCancelToken);
         }
-        bool rescheduleTask(std::chrono::milliseconds timeFromNow, task_id id) {
+        bool rescheduleTask(ms_t timeFromNow, task_id id) {
             return m_executor->rescheduleTaskL(timeFromNow, id);
         }
     private:
@@ -64,11 +64,11 @@ public:
         return taskLocker().pushTask(std::move(task), ownToken, tasksToCancelToken);
     }
 
-    task_id scheduleTask(std::chrono::milliseconds timeFromNow, Task task, task_ctoken ownToken = 0, task_ctoken tasksToCancelToken = 0) {
+    task_id scheduleTask(ms_t timeFromNow, Task task, task_ctoken ownToken = 0, task_ctoken tasksToCancelToken = 0) {
         return taskLocker().scheduleTask(timeFromNow, std::move(task), ownToken, tasksToCancelToken);
     }
 
-    bool rescheduleTask(std::chrono::milliseconds timeFromNow, task_id id) {
+    bool rescheduleTask(ms_t timeFromNow, task_id id) {
         return taskLocker().rescheduleTask(timeFromNow, id);
     }
 
@@ -79,7 +79,7 @@ public:
 
     // only valid on any thread when tasks are locked
     task_id pushTaskL(Task task, task_ctoken ownToken = 0, task_ctoken tasksToCancelToken = 0);
-    task_id scheduleTaskL(std::chrono::milliseconds timeFromNow, Task task, task_ctoken ownToken = 0, task_ctoken tasksToCancelToken = 0);
+    task_id scheduleTaskL(ms_t timeFromNow, Task task, task_ctoken ownToken = 0, task_ctoken tasksToCancelToken = 0);
 
     // will cancel the task successfully and return true if the task queue containing
     // the task hasn't started executing.
@@ -94,15 +94,15 @@ public:
     // reschedule a scheduled task
     // will return true if the reschedule was successful
     // the conditions to return false are the same as the ones from cancelTask
-    bool rescheduleTaskL(std::chrono::milliseconds timeFromNow, task_id id);
+    bool rescheduleTaskL(ms_t timeFromNow, task_id id);
 
     // will cancel tasks which were added with a given token and return the number successfully cancelled
-    // WARNING: tasks which are currently executing are added for immediate execution won't be cancelled
+    // WARNING: tasks which are currently executing won't be cancelled
     // the number of such tasks may be more than one!
     size_t cancelTasksWithToken(task_ctoken token);
     size_t cancelTasksWithTokenL(task_ctoken token); // only valid on any thread when tasks are locked
 private:
-    std::chrono::milliseconds m_minTimeToSchedule;
+    const ms_t m_minTimeToSchedule;
 
     bool m_tasksLocked = false;  // a silly defence but should work most of the time
     bool m_finishTasksOnExit = false;
@@ -129,7 +129,7 @@ private:
     void executeTasks();
 
     struct TimedTaskWithId : public TaskWithId {
-        std::chrono::steady_clock::time_point time;
+        clock_t::time_point time;
         struct Later {
             bool operator()(const TimedTaskWithId& a, const TimedTaskWithId& b) {
                 return a.time > b.time;
@@ -142,7 +142,7 @@ private:
         : public std::priority_queue<TimedTaskWithId, std::vector<TimedTaskWithId>, TimedTaskWithId::Later>
     {
         TaskWithId tryExtractId(task_id id); // will return empty task if not successful
-        bool tryRescheduleId(std::chrono::steady_clock::time_point newTime, task_id id);
+        bool tryRescheduleId(clock_t::time_point newTime, task_id id);
         size_t eraseTasksWithToken(task_ctoken token);
         TimedTaskWithId topAndPop();
         void clear() { c.clear(); }

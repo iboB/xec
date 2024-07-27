@@ -9,12 +9,8 @@
 
 namespace xec {
 
-TaskExecutor::TaskExecutor(std::chrono::milliseconds minTimeToSchedule)
+TaskExecutor::TaskExecutor(ms_t minTimeToSchedule)
     : m_minTimeToSchedule(minTimeToSchedule) {}
-
-namespace {
-auto tnow() { return std::chrono::steady_clock::now(); }
-}
 
 struct TaskExecutor::TaskHasCToken {
     TaskHasCToken(task_ctoken token) : m_token(token) {}
@@ -39,7 +35,7 @@ TaskExecutor::TaskWithId TaskExecutor::TimedTaskQueue::tryExtractId(task_id id) 
     return {};
 }
 
-bool TaskExecutor::TimedTaskQueue::tryRescheduleId(std::chrono::steady_clock::time_point newTime, task_id id) {
+bool TaskExecutor::TimedTaskQueue::tryRescheduleId(clock_t::time_point newTime, task_id id) {
     for (auto taskIter = c.begin(); taskIter != c.end(); ++taskIter) {
         if (taskIter->id == id) {
             taskIter->time = newTime;
@@ -84,7 +80,7 @@ void TaskExecutor::update() {
     fillExecutingTasksL();
 
     if (!m_timedTasks.empty()) {
-        const auto now = tnow();
+        const auto now = clock_t::now();
         const auto maxTimeToExecute = now + m_minTimeToSchedule;
         while (true) {
             auto& top = m_timedTasks.top();
@@ -98,7 +94,7 @@ void TaskExecutor::update() {
             }
             else {
                 const auto toWait = top.time - now;
-                scheduleNextWakeUp(std::chrono::duration_cast<std::chrono::milliseconds>(toWait));
+                scheduleNextWakeUp(std::chrono::duration_cast<ms_t>(toWait));
                 break;
             }
         }
@@ -131,7 +127,7 @@ TaskExecutor::task_id TaskExecutor::pushTaskL(Task task, task_ctoken ownToken, t
     return newTask.id;
 }
 
-TaskExecutor::task_id TaskExecutor::scheduleTaskL(std::chrono::milliseconds timeFromNow, Task task, task_ctoken ownToken, task_ctoken tasksToCancelToken) {
+TaskExecutor::task_id TaskExecutor::scheduleTaskL(ms_t timeFromNow, Task task, task_ctoken ownToken, task_ctoken tasksToCancelToken) {
     // no point in shceduling something which is about to happen so soon
     if (timeFromNow < m_minTimeToSchedule) {
         return pushTaskL(std::move(task));
@@ -144,7 +140,7 @@ TaskExecutor::task_id TaskExecutor::scheduleTaskL(std::chrono::milliseconds time
     newTask.task = std::move(task);
     newTask.id = newId;
     newTask.ctoken = ownToken;
-    newTask.time = tnow() + timeFromNow;
+    newTask.time = clock_t::now() + timeFromNow;
     m_timedTasks.emplace(std::move(newTask));
     return newId;
 }
@@ -165,7 +161,7 @@ bool TaskExecutor::cancelTaskL(task_id id) {
     return !!m_timedTasks.tryExtractId(id).task;
 }
 
-bool TaskExecutor::rescheduleTaskL(std::chrono::milliseconds timeFromNow, task_id id) {
+bool TaskExecutor::rescheduleTaskL(ms_t timeFromNow, task_id id) {
     if (timeFromNow < m_minTimeToSchedule) {
         auto t = m_timedTasks.tryExtractId(id);
         if (!t.task) return false;
@@ -173,7 +169,7 @@ bool TaskExecutor::rescheduleTaskL(std::chrono::milliseconds timeFromNow, task_i
         return true;
     }
     else {
-        auto newTime = tnow() + timeFromNow;
+        auto newTime = clock_t::now() + timeFromNow;
         return m_timedTasks.tryRescheduleId(newTime, id);
     }
 }

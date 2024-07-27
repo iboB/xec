@@ -3,8 +3,7 @@
 //
 #pragma once
 #include "API.h"
-
-#include <chrono>
+#include "impl/chrono.hpp"
 #include <memory>
 
 namespace xec {
@@ -29,7 +28,7 @@ public:
     const ExecutionContext& executionContext() const { return *m_executionContext; }
 
     void wakeUpNow();
-    void scheduleNextWakeUp(std::chrono::milliseconds timeFromNow);
+    void scheduleNextWakeUp(ms_t timeFromNow);
     void unscheduleNextWakeUp();
     void stop();
 private:

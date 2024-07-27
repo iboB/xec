@@ -29,10 +29,10 @@ void ThreadExecutionContext::wakeUpNow() {
     m_workCV.notify_one();
 }
 
-void ThreadExecutionContext::scheduleNextWakeUp(std::chrono::milliseconds timeFromNow) {
+void ThreadExecutionContext::scheduleNextWakeUp(ms_t timeFromNow) {
     {
         std::lock_guard<std::mutex> lk(m_workMutex);
-        m_scheduledWakeUpTime = std::chrono::steady_clock::now() + timeFromNow;
+        m_scheduledWakeUpTime = clock_t::now() + timeFromNow;
     }
     m_workCV.notify_one();
 }

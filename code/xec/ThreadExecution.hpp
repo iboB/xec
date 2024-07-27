@@ -30,7 +30,7 @@ public:
     // shedule a wake up
     // safe to call from any thread
     // safe to call no matter if the executable is waiting or not
-    void scheduleNextWakeUp(std::chrono::milliseconds timeFromNow) override;
+    void scheduleNextWakeUp(ms_t timeFromNow) override;
     void unscheduleNextWakeUp() override;
 
     // call at the beginning of each frame
@@ -42,7 +42,7 @@ private:
 
     // wait state
     bool m_hasWork;
-    std::optional<std::chrono::steady_clock::time_point> m_scheduledWakeUpTime;
+    std::optional<clock_t::time_point> m_scheduledWakeUpTime;
     std::condition_variable m_workCV;
     std::mutex m_workMutex;
 };

@@ -3,8 +3,7 @@
 //
 #pragma once
 #include "API.h"
-
-#include <chrono>
+#include "impl/chrono.hpp"
 
 namespace xec {
 
@@ -20,7 +19,7 @@ public:
     // schedule a wake up
     // NOTE that if a wake up happens before the scheduled time (by wakeUpNow) the scheduled time is forgotten
     // NOTE that if two calls to schedule a wake up happen before a wake up, the second one will override the first
-    virtual void scheduleNextWakeUp(std::chrono::milliseconds timeFromNow) = 0;
+    virtual void scheduleNextWakeUp(ms_t timeFromNow) = 0;
     virtual void unscheduleNextWakeUp() = 0;
 
     // called by the executor when it determines that it wants to be stopped
