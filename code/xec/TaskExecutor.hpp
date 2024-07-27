@@ -32,6 +32,7 @@ public:
     using task_id = uint32_t;
     using task_ctoken = uint32_t; // cancellation token
 
+    // locker raii interface
     class TaskLocker {
     public:
         explicit TaskLocker(TaskExecutor* e) : m_executor(e) {
@@ -81,10 +82,9 @@ public:
     task_id pushTaskL(Task task, task_ctoken ownToken = 0, task_ctoken tasksToCancelToken = 0);
     task_id scheduleTaskL(ms_t timeFromNow, Task task, task_ctoken ownToken = 0, task_ctoken tasksToCancelToken = 0);
 
-    // will cancel the task successfully and return true if the task queue containing
-    // the task hasn't started executing.
-    // returns whether the task was removed from the pending tasks
-    // WARNING: if this returns false one of three things might be true:
+    // cancel the task successfully and return true if the task queue containing the task hasn't started executing.
+    // return whether the task was removed from the pending tasks
+    // WARNING: if this returns false, one of three things might be true:
     // * The task was never added (bad id)
     // * The task is currently executing
     // * The task has finished executing
@@ -92,13 +92,12 @@ public:
     bool cancelTaskL(task_id id); // only valid on any thread when tasks are locked
 
     // reschedule a scheduled task
-    // will return true if the reschedule was successful
+    // return true if the reschedule was successful
     // the conditions to return false are the same as the ones from cancelTask
     bool rescheduleTaskL(ms_t timeFromNow, task_id id);
 
-    // will cancel tasks which were added with a given token and return the number successfully cancelled
-    // WARNING: tasks which are currently executing won't be cancelled
-    // the number of such tasks may be more than one!
+    // cancel tasks which were added with a given token and return the number successfully cancelled
+    // WARNING: tasks which are currently executing won't be cancelled; the number of such tasks may be more than one!
     size_t cancelTasksWithToken(task_ctoken token);
     size_t cancelTasksWithTokenL(task_ctoken token); // only valid on any thread when tasks are locked
 private:
@@ -109,7 +108,7 @@ private:
     std::mutex m_tasksMutex;
 
     task_id m_freeTaskId = 0;
-    task_id getNextTaskId();
+    task_id getNextTaskIdL();
 
     struct TaskWithId {
         Task task;

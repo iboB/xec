@@ -71,7 +71,7 @@ void ThreadExecutionContext::wait() {
             // this might be a spurious wake up
             // in such case we don't have work, and don't have a new timer
             // so we will loop again and wait on the same timer again
-            // it may also be the case tha we've been woken up by unschedule
+            // it may also be the case that we've been woken up by unschedule
             // in this case we loop again and will wait indefinitely
         }
         else {

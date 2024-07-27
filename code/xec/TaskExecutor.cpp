@@ -18,7 +18,7 @@ struct TaskExecutor::TaskHasCToken {
     TaskExecutor::task_ctoken m_token;
 };
 
-TaskExecutor::task_id TaskExecutor::getNextTaskId() {
+TaskExecutor::task_id TaskExecutor::getNextTaskIdL() {
     return m_freeTaskId++;
 }
 
@@ -122,20 +122,20 @@ TaskExecutor::task_id TaskExecutor::pushTaskL(Task task, task_ctoken ownToken, t
 
     auto& newTask = m_taskQueue.emplace_back();
     newTask.task = std::move(task);
-    newTask.id = getNextTaskId();
+    newTask.id = getNextTaskIdL();
     newTask.ctoken = ownToken;
     return newTask.id;
 }
 
 TaskExecutor::task_id TaskExecutor::scheduleTaskL(ms_t timeFromNow, Task task, task_ctoken ownToken, task_ctoken tasksToCancelToken) {
-    // no point in shceduling something which is about to happen so soon
+    // no point in scheduling something which is about to happen so soon
     if (timeFromNow < m_minTimeToSchedule) {
         return pushTaskL(std::move(task));
     }
 
     assert(m_tasksLocked);
     cancelTasksWithTokenL(tasksToCancelToken);
-    const auto newId = getNextTaskId();
+    const auto newId = getNextTaskIdL();
     TimedTaskWithId newTask;
     newTask.task = std::move(task);
     newTask.id = newId;
@@ -192,7 +192,7 @@ void TaskExecutor::finalize() {
     if (m_finishTasksOnExit) {
         // since tasks can add other tasks, we need to loop mulitple times until we're done
         // we also intentionally ignore scheduled tasks in this context
-        // (since they're not executed immediately they are not considered essential)
+        // (since they're not executed immediately, they are not considered essential)
         while (true) {
             m_tasksMutex.lock();
             fillExecutingTasksL();
