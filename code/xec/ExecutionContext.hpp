@@ -12,6 +12,8 @@ class ExecutorBase;
 class XEC_API ExecutionContext {
 public:
     virtual ~ExecutionContext(); // defined in ExecutorBase.cpp, not here but in a cpp so as to export the vtable
+protected:
+    friend class ExecutorBase;
 
     // signal that the executor needs to be updated
     virtual void wakeUpNow() = 0;
