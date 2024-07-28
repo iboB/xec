@@ -9,7 +9,7 @@ class ExecutorBase;
 
 class PoolExecution {
 public:
-    PoolExecution(uint32_t numThreads);
+    PoolExecution();
     ~PoolExecution();
 
     void addExecutor(ExecutorBase& executor);

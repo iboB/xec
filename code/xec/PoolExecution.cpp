@@ -33,9 +33,9 @@ public:
         , m_executor(executor)
     {}
 
-    const std::optional<clock_t::time_point>& scheduledWakeUpTime() const noexcept { return m_scheduledWakeUpTime; }
+    ExecutorBase& executor() { return m_executor; }
 
-    void update();
+    const std::optional<clock_t::time_point>& scheduledWakeUpTime() const noexcept { return m_scheduledWakeUpTime; }
 
     virtual void wakeUpNow() override;
 
@@ -77,9 +77,10 @@ public:
         return i;
     }
 
+    using container::empty;
+
     using container::begin;
     using container::end;
-
 
     using container::erase;
     bool erase(const T& t) {
@@ -88,8 +89,6 @@ public:
         erase(i);
         return true;
     }
-
-private:
 };
 
 class PoolExecution::Impl {
@@ -107,6 +106,8 @@ public:
 
     ordered_linear_set<PoolExecutionContext*, std::deque> m_pendingContexts; // waiting to be executed
 
+    std::unordered_set<PoolExecutionContext*> m_allContexts; // all contexts
+
     struct TimedContext {
         PoolExecutionContext* ctx;
         clock_t::time_point time;
@@ -120,6 +121,13 @@ public:
     };
 
     TimedQueue<TimedContext> m_scheduledContexts;
+
+    ~Impl() {
+        // all contexts should be stopped before the pool is destroyed
+        assert(m_allContexts.empty());
+        assert(m_activeContexts.empty());
+        assert(m_pendingContexts.empty());
+    }
 
     void wakeUpNow(PoolExecutionContext& ctx) {
         {
@@ -161,7 +169,7 @@ public:
             }
         }
 
-        while (m_running) {
+        while (true) {
             if (!m_scheduledContexts.empty()) {
                 // first, if we have scheduled contexts which are ready, move them to pending
                 // and update the scheduled wake up time appropriately
@@ -194,6 +202,13 @@ public:
 
                 m_pendingContexts.erase(i);
                 return *i;
+            }
+
+            if (!m_running) {
+                // we have stopped runnign and there are no more pending contexts
+                // this means they are all stopped and finalized and it's safe to tell the threads to stop
+                // scheduled updates are just skipped (we assume they are not relevant enough)
+                return nullptr;
             }
 
             if (m_scheduledWakeUpTime) {
@@ -229,28 +244,37 @@ public:
         PoolExecutionContext* ctx = nullptr;
         while (true) {
             ctx = waitForContext(ctx);
+
             if (!ctx) return;
-            ctx->update();
+
+            if (ctx->running()) {
+                ctx->executor().update();
+            }
+            else {
+                m_allContexts.erase(ctx);
+                ctx->executor().finalize();
+            }
         }
     }
 
     void stop() {
         {
             std::lock_guard<std::mutex> lk(m_mutex);
+            if (!m_running) return; // already stopped
             m_running = false;
+            for (auto ctx : m_allContexts) {
+                ctx->stop();
+            }
         }
         m_cv.notify_all();
     }
-};
 
-void PoolExecution::PoolExecutionContext::update() {
-    if (running()) {
-        m_executor.update();
+    void addExecutor(ExecutorBase& executor) {
+        auto ctx = std::make_unique<PoolExecutionContext>(*this, executor);
+        m_allContexts.insert(ctx.get());
+        executor.setExecutionContext(std::move(ctx));
     }
-    else {
-        m_executor.finalize();
-    }
-}
+};
 
 void PoolExecution::PoolExecutionContext::wakeUpNow() {
     if (running()) {
@@ -269,15 +293,14 @@ bool PoolExecution::PoolExecutionContext::running() const {
     return m_running.load(std::memory_order_acquire);
 }
 
-PoolExecution::PoolExecution(uint32_t numThreads)
+PoolExecution::PoolExecution()
     : m_impl(new Impl)
 {}
 
 PoolExecution::~PoolExecution() = default;
 
 void PoolExecution::addExecutor(ExecutorBase& executor) {
-    auto ctx = std::make_unique<PoolExecutionContext>(*m_impl, executor);
-    executor.setExecutionContext(std::move(ctx));
+    m_impl->addExecutor(executor);
 }
 
 }
