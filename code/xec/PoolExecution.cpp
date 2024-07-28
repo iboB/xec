@@ -1,10 +1,13 @@
+// Copyright (c) Borislav Stanimirov
+// SPDX-License-Identifier: MIT
+//
 #include "PoolExecution.hpp"
 #include "ExecutorBase.hpp"
 #include "ExecutionContext.hpp"
 
 #include <itlib/qalgorithm.hpp>
 
-#include <list>
+#include <deque>
 #include <thread>
 #include <vector>
 #include <cassert>
@@ -15,11 +18,10 @@
 namespace xec {
 
 class PoolExecution::PoolExecutionContext : public ExecutionContext {
-public:
-    ExecutorBase* executor = nullptr;
-
+    ExecutorBase* m_executor = nullptr;
+    bool m_running = true;
     PoolExecution::Impl& m_execution;
-
+public:
     PoolExecutionContext(PoolExecution::Impl& execution)
         : m_execution(execution)
     {}
@@ -35,36 +37,72 @@ public:
     virtual bool running() const override;
 };
 
+template <typename T, template <typename ...> typename Container = std::vector>
+class ordered_linear_set : private Container<T> {
+public:
+    using container = Container<T>;
+    using iterator = typename container::iterator;
+
+    container& c() { return *this; }
+    const container& c() const { return *this; }
+
+    bool insert(T&& t) {
+        for (const auto& e : c()) {
+            if (e == t) return false;
+        }
+        c().push_back(std::forward<T>(t));
+        return true;
+    }
+
+    iterator find(const T& t) {
+        auto i = begin();
+        for (; i != end(); ++i) {
+            if (*i == t) break;
+        }
+        return i;
+    }
+
+    using container::begin;
+    using container::end;
+
+
+    using container::erase;
+    bool erase(const T& t) {
+        auto i = find(t);
+        if (i == end()) return false;
+        erase(i);
+        return true;
+    }
+
+private:
+};
+
 class PoolExecution::Impl {
 public:
     // wait state
     bool m_hasWork;
     std::condition_variable m_workCV;
     std::mutex m_workMutex;
-    std::optional<clock_t::time_point> m_scheduledWakeUpTime;
 
-    std::list<PoolExecutionContext> m_freeContexts; // pool to avoid allocations
-    std::list<PoolExecutionContext> m_allocatedContexts; // contexts with executors
+    std::deque<PoolExecutionContext> m_contexts; // sparse array (by PoolExecutionContext::executor)
 
-    std::unordered_set<PoolExecutionContext*> m_activeContexts; // use this to avoid duplicates
-    std::vector<PoolExecutionContext*> m_orderedActiveContexts; // use this queue contexts in order of activation
+    ordered_linear_set<PoolExecutionContext*> m_activeContexts; // currently being executed
+
+    ordered_linear_set<PoolExecutionContext*, std::deque> m_pendingContexts; // waiting to be executed
 
     void wakeUpNow(PoolExecutionContext& ctx) {
         {
             std::lock_guard<std::mutex> lk(m_workMutex);
-
-            auto inserted = m_activeContexts.insert(&ctx).second;
-
-            if (!inserted) {
-                // if the context is already active there's nothing to do
+            if (!m_pendingContexts.insert(&ctx)) {
+                // an opportunity to prevent needless wakeups of workers
+                // if the context is already pending, there's nothing to do
                 // m_hasWork must be true (set by previous wakeups) which means that
-                // * the context is already in the ordered list
-                // * workers are are waiting on a mutex lock to get it
+                // * either workers are are waiting on a mutex lock to get it
+                // * or they are sleeping because they can't get it, because it's already locked by another worker
+                //   and this worker will get this context in its next iteration
                 assert(m_hasWork);
                 return;
             }
-
-            m_orderedActiveContexts.push_back(&ctx);
             m_hasWork = true;
         }
         m_workCV.notify_all();
@@ -72,6 +110,13 @@ public:
 
     void scheduleNextWakeUp(PoolExecutionContext& ctx, ms_t timeFromNow) {
 
+    }
+
+    void unscheduleNextWakeUp(PoolExecutionContext& ctx) {
+
+    }
+
+    void stop(PoolExecutionContext& ctx) {
     }
 };
 
