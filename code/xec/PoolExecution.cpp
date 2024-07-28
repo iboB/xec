@@ -5,14 +5,18 @@
 #include "ExecutorBase.hpp"
 #include "ExecutionContext.hpp"
 
+#include "ThreadName.hpp"
+
 #include "impl/TimedQueue.hpp"
+#include "impl/ordered_linear_set.hpp"
 
 #include <itlib/qalgorithm.hpp>
 
 #include <deque>
 #include <thread>
-#include <vector>
 #include <atomic>
+#include <mutex>
+#include <string>
 #include <cassert>
 #include <optional>
 #include <unordered_set>
@@ -20,7 +24,7 @@
 
 namespace xec {
 
-class PoolExecution::PoolExecutionContext final : public ExecutionContext {
+class PoolExecution::Context final : public ExecutionContext {
     PoolExecution::Impl& m_execution;
     ExecutorBase& m_executor;
     std::atomic_bool m_running = true;
@@ -28,7 +32,7 @@ class PoolExecution::PoolExecutionContext final : public ExecutionContext {
     // scheduled wake up time
     std::optional<clock_t::time_point> m_scheduledWakeUpTime;
 public:
-    PoolExecutionContext(PoolExecution::Impl& execution, ExecutorBase& executor)
+    Context(PoolExecution::Impl& execution, ExecutorBase& executor)
         : m_execution(execution)
         , m_executor(executor)
     {}
@@ -52,45 +56,6 @@ public:
     virtual bool running() const override;
 };
 
-template <typename T, template <typename ...> typename Container = std::vector>
-class ordered_linear_set : private Container<T> {
-public:
-    using container = Container<T>;
-    using iterator = typename container::iterator;
-
-    container& c() { return *this; }
-    const container& c() const { return *this; }
-
-    bool insert(const T& t) {
-        for (const auto& e : c()) {
-            if (e == t) return false;
-        }
-        c().push_back(t);
-        return true;
-    }
-
-    iterator find(const T& t) {
-        auto i = begin();
-        for (; i != end(); ++i) {
-            if (*i == t) break;
-        }
-        return i;
-    }
-
-    using container::empty;
-
-    using container::begin;
-    using container::end;
-
-    using container::erase;
-    bool erase(const T& t) {
-        auto i = find(t);
-        if (i == end()) return false;
-        erase(i);
-        return true;
-    }
-};
-
 class PoolExecution::Impl {
 public:
     // wait state
@@ -102,18 +67,18 @@ public:
     // scheduled wake up time
     std::optional<clock_t::time_point> m_scheduledWakeUpTime;
 
-    ordered_linear_set<PoolExecutionContext*> m_activeContexts; // currently being executed
+    ordered_linear_set<Context*> m_activeContexts; // currently being executed
 
-    ordered_linear_set<PoolExecutionContext*, std::deque> m_pendingContexts; // waiting to be executed
+    ordered_linear_set<Context*, std::deque> m_pendingContexts; // waiting to be executed
 
-    std::unordered_set<PoolExecutionContext*> m_allContexts; // all contexts
+    std::unordered_set<Context*> m_allContexts; // all contexts
 
     struct TimedContext {
-        PoolExecutionContext* ctx;
+        Context* ctx;
         clock_t::time_point time;
 
         struct ByCtx {
-            PoolExecutionContext& ctx;
+            Context& ctx;
             bool operator()(const TimedContext& tc) const {
                 return &ctx == tc.ctx;
             }
@@ -129,7 +94,7 @@ public:
         assert(m_pendingContexts.empty());
     }
 
-    void wakeUpNow(PoolExecutionContext& ctx) {
+    void wakeUpNow(Context& ctx) {
         {
             std::lock_guard<std::mutex> lk(m_mutex);
             if (!m_pendingContexts.insert(&ctx)) {
@@ -142,12 +107,12 @@ public:
             }
 
             // we added the context to the pending list, so remove it from the scheduled one
-            m_scheduledContexts.eraseFirst(TimedContext::ByCtx{ctx});
+            m_scheduledContexts.eraseFirst(TimedContext::ByCtx{ ctx });
         }
         m_cv.notify_one();
     }
 
-    PoolExecutionContext* waitForContext(PoolExecutionContext* contextToFree) {
+    Context* waitForContext(Context* contextToFree) {
         std::unique_lock<std::mutex> lock(m_mutex);
 
         if (contextToFree) {
@@ -158,14 +123,14 @@ public:
             if (wakeupTime) {
                 if (m_pendingContexts.find(contextToFree) == m_pendingContexts.end()) {
                     // context is not pending wakeup, so we add it
-                    m_scheduledContexts.push({contextToFree, *wakeupTime});
+                    m_scheduledContexts.push({ contextToFree, *wakeupTime });
                 }
                 // else this context is pending wakup anyway, so there's nothing to do
             }
             else {
                 // this context doesn't have a scheduled wake up time
                 // so we should remove it from the scheduled contexts (if it's there)
-                m_scheduledContexts.eraseFirst(TimedContext::ByCtx{*contextToFree});
+                m_scheduledContexts.eraseFirst(TimedContext::ByCtx{ *contextToFree });
             }
         }
 
@@ -241,7 +206,7 @@ public:
     }
 
     void run() {
-        PoolExecutionContext* ctx = nullptr;
+        Context* ctx = nullptr;
         while (true) {
             ctx = waitForContext(ctx);
 
@@ -270,37 +235,79 @@ public:
     }
 
     void addExecutor(ExecutorBase& executor) {
-        auto ctx = std::make_unique<PoolExecutionContext>(*this, executor);
+        auto ctx = std::make_unique<Context>(*this, executor);
         m_allContexts.insert(ctx.get());
         executor.setExecutionContext(std::move(ctx));
     }
+
+    std::vector<std::thread> m_threads;
+
+    void launchThreads(size_t count, std::optional<std::string_view> threadName) {
+        if (threadName) {
+            for (size_t i = 0; i < count; ++i) {
+                m_threads.emplace_back([this, name = std::string(*threadName) + std::to_string(i + 1)] {
+                    SetThisThreadName(name);
+                    run();
+                });
+            }
+        }
+        else {
+            for (size_t i = 0; i < count; ++i) {
+                m_threads.emplace_back([this] { run(); });
+            }
+        }
+    }
+
+    void joinThreads() {
+        for (auto& t : m_threads) {
+            t.join();
+        }
+    }
+
+    void stopAndJoinThreads() {
+        stop();
+        joinThreads();
+    }
 };
 
-void PoolExecution::PoolExecutionContext::wakeUpNow() {
+void PoolExecution::Context::wakeUpNow() {
     if (running()) {
         m_execution.wakeUpNow(*this);
     }
 }
 
-void PoolExecution::PoolExecutionContext::stop() {
+void PoolExecution::Context::stop() {
     if (m_running.exchange(false, std::memory_order_release)) {
         // one final wake up se we can finalize the executor
         m_execution.wakeUpNow(*this);
     }
 }
 
-bool PoolExecution::PoolExecutionContext::running() const {
+bool PoolExecution::Context::running() const {
     return m_running.load(std::memory_order_acquire);
 }
 
 PoolExecution::PoolExecution()
     : m_impl(new Impl)
 {}
-
 PoolExecution::~PoolExecution() = default;
-
 void PoolExecution::addExecutor(ExecutorBase& executor) {
     m_impl->addExecutor(executor);
+}
+void PoolExecution::run() {
+    m_impl->run();
+}
+void PoolExecution::stop() {
+    m_impl->stop();
+}
+void PoolExecution::launchThreads(size_t count, std::optional<std::string_view> threadName) {
+    m_impl->launchThreads(count, threadName);
+}
+void PoolExecution::joinThreads() {
+    m_impl->joinThreads();
+}
+void PoolExecution::stopAndJoinThreads() {
+    m_impl->stopAndJoinThreads();
 }
 
 }
