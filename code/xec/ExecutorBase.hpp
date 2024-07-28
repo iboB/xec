@@ -27,6 +27,7 @@ public:
 
     const ExecutionContext& executionContext() const { return *m_executionContext; }
 
+    // proxies to the execution context
     void wakeUpNow();
     void scheduleNextWakeUp(ms_t timeFromNow);
     void unscheduleNextWakeUp();
