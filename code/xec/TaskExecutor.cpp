@@ -72,7 +72,7 @@ void TaskExecutor::lockTasks() {
 void TaskExecutor::unlockTasks() {
     m_tasksLocked = false;
     m_tasksMutex.unlock();
-    wakeUpNow(); // assuming something has changed
+    wakeUpNow(); // assume something has changed
 }
 
 TaskExecutor::task_id TaskExecutor::pushTaskL(Task task, task_ctoken ownToken, task_ctoken tasksToCancelToken) {
