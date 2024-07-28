@@ -5,6 +5,8 @@
 #include "ExecutorBase.hpp"
 #include "ExecutionContext.hpp"
 
+#include "impl/TimedQueue.hpp"
+
 #include <itlib/qalgorithm.hpp>
 
 #include <deque>
@@ -90,6 +92,20 @@ public:
 
     ordered_linear_set<PoolExecutionContext*, std::deque> m_pendingContexts; // waiting to be executed
 
+    struct TimedContext {
+        PoolExecutionContext* ctx;
+        clock_t::time_point time;
+
+        struct ByCtx {
+            PoolExecutionContext& ctx;
+            bool operator()(const TimedContext& tc) const {
+                return &ctx == tc.ctx;
+            }
+        };
+    };
+
+    TimedQueue<TimedContext> m_scheduledContexts;
+
     void wakeUpNow(PoolExecutionContext& ctx) {
         {
             std::lock_guard<std::mutex> lk(m_workMutex);
@@ -105,15 +121,30 @@ public:
             }
             m_hasWork = true;
         }
-        m_workCV.notify_all();
+        m_workCV.notify_one();
     }
 
     void scheduleNextWakeUp(PoolExecutionContext& ctx, ms_t timeFromNow) {
-
+        {
+            std::lock_guard<std::mutex> lk(m_workMutex);
+            auto newTime = clock_t::now() + timeFromNow;
+            if (!m_scheduledContexts.tryReschedule(newTime, TimedContext::ByCtx{ctx})) {
+                // context is not scheduled so add it
+                m_scheduledContexts.push({&ctx, clock_t::now() + timeFromNow});
+            }
+            m_hasWork = true;
+        }
+        m_workCV.notify_one();
     }
 
     void unscheduleNextWakeUp(PoolExecutionContext& ctx) {
-
+        {
+            std::lock_guard<std::mutex> lk(m_workMutex);
+            auto erased = m_scheduledContexts.eraseFirst(TimedContext::ByCtx{ctx});
+            if (!erased) return; // context was not scheduled, so there's nothing to do
+            m_hasWork = true;
+        }
+        m_workCV.notify_one();
     }
 
     void stop(PoolExecutionContext& ctx) {

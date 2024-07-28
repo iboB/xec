@@ -62,6 +62,17 @@ struct TimedQueue
         return size;
     }
 
+    template <typename F>
+    bool eraseFirst(F&& f) {
+        auto& c = this->c;
+        auto& comp = this->comp;
+        auto i = std::find_if(c.begin(), c.end(), std::forward<F>(f));
+        if (i == c.end()) return false;
+        c.erase(i);
+        std::make_heap(c.begin(), c.end(), comp);
+        return true;
+    }
+
     T topAndPop() {
         auto& c = this->c;
         auto& comp = this->comp;
