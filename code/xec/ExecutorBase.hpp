@@ -13,7 +13,7 @@ class ExecutionContext;
 class XEC_API ExecutorBase {
 public:
     ExecutorBase();
-    ExecutorBase(ExecutionContext& context);
+    ExecutorBase(std::unique_ptr<ExecutionContext> context);
     virtual ~ExecutorBase();
 
     virtual void update() = 0;
@@ -23,7 +23,7 @@ public:
 
     // only applicable if no context has been set (either in the ctor or by calling this method)
     // until the context is set, a default one will be used and no execution will happen
-    void setExecutionContext(ExecutionContext& context);
+    void setExecutionContext(std::unique_ptr<ExecutionContext> context);
 
     const ExecutionContext& executionContext() const { return *m_executionContext; }
 
@@ -33,12 +33,12 @@ public:
     void unscheduleNextWakeUp();
     void stop();
 private:
+    std::unique_ptr<ExecutionContext> m_executionContext; // never null
+
     // potentially points to a custom oneshot execution context which is used
     // when default constructed and then ignored throughout
     class InitialContext;
-    std::unique_ptr<InitialContext> m_initialContext;
-
-    ExecutionContext* m_executionContext; // never null
+    InitialContext* m_initialContext = nullptr;
 };
 
 }
