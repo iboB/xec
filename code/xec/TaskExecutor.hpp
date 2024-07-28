@@ -5,12 +5,12 @@
 #include "API.h"
 
 #include "ExecutorBase.hpp"
+#include "impl/TimedQueue.hpp"
 
 #include <itlib/ufunction.hpp>
 
 #include <mutex>
 #include <vector>
-#include <queue>
 
 namespace xec {
 
@@ -114,6 +114,15 @@ private:
         Task task;
         task_id id;
         task_ctoken ctoken;
+
+        struct ById {
+            task_id id;
+            bool operator()(const TaskWithId& t) const { return t.id == id; }
+        };
+        struct ByCToken {
+            task_ctoken ctoken;
+            bool operator()(const TaskWithId& t) const { return t.ctoken == ctoken; }
+        };
     };
     std::vector<TaskWithId> m_taskQueue;
 
@@ -129,24 +138,10 @@ private:
 
     struct TimedTaskWithId : public TaskWithId {
         clock_t::time_point time;
-        struct Later {
-            bool operator()(const TimedTaskWithId& a, const TimedTaskWithId& b) {
-                return a.time > b.time;
-            }
-        };
     };
 
     // adapt more so we can erase tasks
-    struct TimedTaskQueue
-        : public std::priority_queue<TimedTaskWithId, std::vector<TimedTaskWithId>, TimedTaskWithId::Later>
-    {
-        TaskWithId tryExtractId(task_id id); // will return empty task if not successful
-        bool tryRescheduleId(clock_t::time_point newTime, task_id id);
-        size_t eraseTasksWithToken(task_ctoken token);
-        TimedTaskWithId topAndPop();
-        void clear() { c.clear(); }
-    };
-    TimedTaskQueue m_timedTasks;
+    TimedQueue<TimedTaskWithId> m_timedTasks;
 
     struct TaskHasCToken; // helper for searches by token
 };

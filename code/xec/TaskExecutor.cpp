@@ -22,47 +22,6 @@ TaskExecutor::task_id TaskExecutor::getNextTaskIdL() {
     return m_freeTaskId++;
 }
 
-TaskExecutor::TaskWithId TaskExecutor::TimedTaskQueue::tryExtractId(task_id id) {
-    for (auto taskIter = c.begin(); taskIter != c.end(); ++taskIter) {
-        if (taskIter->id == id) {
-            // intentional slice
-            TaskExecutor::TaskWithId extracted = std::move(*taskIter);
-            c.erase(taskIter);
-            std::make_heap(c.begin(), c.end(), comp);
-            return extracted;
-        }
-    }
-    return {};
-}
-
-bool TaskExecutor::TimedTaskQueue::tryRescheduleId(clock_t::time_point newTime, task_id id) {
-    for (auto taskIter = c.begin(); taskIter != c.end(); ++taskIter) {
-        if (taskIter->id == id) {
-            taskIter->time = newTime;
-            std::make_heap(c.begin(), c.end(), comp);
-            return true;
-        }
-    }
-    return false;
-}
-
-size_t TaskExecutor::TimedTaskQueue::eraseTasksWithToken(task_ctoken token) {
-    auto newEnd = std::remove_if(c.begin(), c.end(), TaskHasCToken(token));
-    auto size = c.end() - newEnd;
-    if (size) {
-        c.erase(newEnd, c.end());
-        std::make_heap(c.begin(), c.end(), comp);
-    }
-    return size;
-}
-
-TaskExecutor::TimedTaskWithId TaskExecutor::TimedTaskQueue::topAndPop() {
-    std::pop_heap(c.begin(), c.end(), comp);
-    auto ret = std::move(c.back());
-    c.pop_back();
-    return ret;
-}
-
 void TaskExecutor::fillExecutingTasksL() {
     assert(m_executingTasks.empty());
     m_executingTasks.swap(m_taskQueue);
@@ -158,19 +117,19 @@ bool TaskExecutor::cancelTaskL(task_id id) {
         }
     }
 
-    return !!m_timedTasks.tryExtractId(id).task;
+    return !!m_timedTasks.tryExtract(TaskWithId::ById{id});
 }
 
 bool TaskExecutor::rescheduleTaskL(ms_t timeFromNow, task_id id) {
     if (timeFromNow < m_minTimeToSchedule) {
-        auto t = m_timedTasks.tryExtractId(id);
-        if (!t.task) return false;
-        m_taskQueue.emplace_back(std::move(t));
+        auto t = m_timedTasks.tryExtract(TaskWithId::ById{id});
+        if (!t) return false;
+        m_taskQueue.emplace_back(std::move(*t)); // slice
         return true;
     }
     else {
         auto newTime = clock_t::now() + timeFromNow;
-        return m_timedTasks.tryRescheduleId(newTime, id);
+        return m_timedTasks.tryReschedule(newTime, TaskWithId::ById{id});
     }
 }
 
@@ -185,7 +144,7 @@ size_t TaskExecutor::cancelTasksWithTokenL(task_ctoken token) {
     auto newEnd = std::remove_if(m_taskQueue.begin(), m_taskQueue.end(), TaskHasCToken(token));
     auto size = m_taskQueue.end() - newEnd;
     m_taskQueue.erase(newEnd, m_taskQueue.end());
-    return size + m_timedTasks.eraseTasksWithToken(token);
+    return size + m_timedTasks.eraseAll(TaskWithId::ByCToken{token});
 }
 
 void TaskExecutor::finalize() {
