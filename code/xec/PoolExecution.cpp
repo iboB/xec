@@ -88,10 +88,7 @@ public:
     TimedQueue<TimedContext> m_scheduledContexts;
 
     ~Impl() {
-        // all contexts should be stopped before the pool is destroyed
-        assert(m_allContexts.empty());
-        assert(m_activeContexts.empty());
-        assert(m_pendingContexts.empty());
+        stopAndJoinThreads();
     }
 
     void wakeUpNow(Context& ctx) {
@@ -166,7 +163,7 @@ public:
                 }
 
                 m_pendingContexts.erase(i);
-                return *i;
+                return ctx;
             }
 
             if (!m_running) {
@@ -216,7 +213,10 @@ public:
                 ctx->executor().update();
             }
             else {
-                m_allContexts.erase(ctx);
+                {
+                    std::lock_guard<std::mutex> lk(m_mutex);
+                    m_allContexts.erase(ctx);
+                }
                 ctx->executor().finalize();
             }
         }
@@ -236,19 +236,34 @@ public:
 
     void addExecutor(ExecutorBase& executor) {
         auto ctx = std::make_unique<Context>(*this, executor);
-        m_allContexts.insert(ctx.get());
-        executor.setExecutionContext(std::move(ctx));
+        {
+            std::lock_guard<std::mutex> lk(m_mutex);
+            m_pendingContexts.insert(ctx.get());
+            m_allContexts.insert(ctx.get());
+            executor.setExecutionContext(std::move(ctx));
+        }
+        m_cv.notify_one();
     }
 
     std::vector<std::thread> m_threads;
 
     void launchThreads(size_t count, std::optional<std::string_view> threadName) {
+        m_threads.reserve(count);
+
         if (threadName) {
-            for (size_t i = 0; i < count; ++i) {
-                m_threads.emplace_back([this, name = std::string(*threadName) + std::to_string(i + 1)] {
+            if (count == 1) {
+                m_threads.emplace_back([this, name = std::string(*threadName)] {
                     SetThisThreadName(name);
                     run();
                 });
+            }
+            else {
+                for (size_t i = 0; i < count; ++i) {
+                    m_threads.emplace_back([this, name = std::string(*threadName) + std::to_string(i + 1)] {
+                        SetThisThreadName(name);
+                        run();
+                    });
+                }
             }
         }
         else {
@@ -262,6 +277,11 @@ public:
         for (auto& t : m_threads) {
             t.join();
         }
+
+        // all contexts should be stopped when the threads are joined
+        assert(m_allContexts.empty());
+        assert(m_activeContexts.empty());
+        assert(m_pendingContexts.empty());
     }
 
     void stopAndJoinThreads() {

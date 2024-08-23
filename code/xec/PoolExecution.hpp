@@ -21,7 +21,7 @@ public:
     void run(); // blocks current thread with a worker loop
     void stop();
 
-    void launchThreads(size_t count, std::optional<std::string_view> threadName);
+    void launchThreads(size_t count, std::optional<std::string_view> threadName = {});
     void joinThreads();
     void stopAndJoinThreads();
 
