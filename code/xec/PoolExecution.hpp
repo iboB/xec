@@ -16,14 +16,15 @@ public:
     PoolExecution();
     ~PoolExecution();
 
-    void addExecutor(ExecutorBase& executor);
+    void addExecutor(ExecutorBase& executor); // valid on any thread
+    void stop(); // valid on any thread
 
-    void run(); // blocks current thread with a worker loop
-    void stop();
-
+    // these three functions must be called on the same thread
     void launchThreads(size_t count, std::optional<std::string_view> threadName = {});
     void joinThreads();
     void stopAndJoinThreads();
+
+    void run(); // blocks current thread with a worker loop
 
 public:
     class Impl;

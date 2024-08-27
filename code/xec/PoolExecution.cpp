@@ -104,7 +104,7 @@ public:
             }
 
             // we added the context to the pending list, so remove it from the scheduled one
-            m_scheduledContexts.eraseFirst(TimedContext::ByCtx{ ctx });
+            m_scheduledContexts.eraseFirst(TimedContext::ByCtx{ctx});
         }
         m_cv.notify_one();
     }
@@ -167,7 +167,7 @@ public:
             }
 
             if (!m_running) {
-                // we have stopped runnign and there are no more pending contexts
+                // we have stopped running and there are no more pending contexts
                 // this means they are all stopped and finalized and it's safe to tell the threads to stop
                 // scheduled updates are just skipped (we assume they are not relevant enough)
                 return nullptr;
@@ -218,6 +218,10 @@ public:
                     m_allContexts.erase(ctx);
                 }
                 ctx->executor().finalize();
+
+                // finalize might have inadvertently scheduled wake ups
+                // clear them as we stop this context
+                ctx->unscheduleNextWakeUp();
             }
         }
     }
