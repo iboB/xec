@@ -3,7 +3,7 @@
 //
 #pragma once
 #include "API.h"
-#include "impl/chrono.hpp"
+#include "bits/chrono.hpp"
 
 namespace xec {
 

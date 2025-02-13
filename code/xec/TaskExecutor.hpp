@@ -5,7 +5,7 @@
 #include "API.h"
 
 #include "ExecutorBase.hpp"
-#include "impl/TimedQueue.hpp"
+#include "bits/TimedQueue.hpp"
 
 #include <itlib/ufunction.hpp>
 

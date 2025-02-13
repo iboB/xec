@@ -7,8 +7,8 @@
 
 #include "ThreadName.hpp"
 
-#include "impl/TimedQueue.hpp"
-#include "impl/ordered_linear_set.hpp"
+#include "bits/TimedQueue.hpp"
+#include "bits/ordered_linear_set.hpp"
 
 #include <itlib/qalgorithm.hpp>
 
