@@ -7,7 +7,13 @@
 #include <cstdio>
 #include <cassert>
 
-#if defined(_WIN32)
+#if defined(_WIN32) && !defined(_POSIX_THREADS)
+#   define WIN32_THREADS 1
+#else
+#   define WIN32_THREADS 0
+#endif
+
+#if WIN32_THREADS
 #   define WIN32_LEAN_AND_MEAN
 #   include <Windows.h>
 using tid = HANDLE;
@@ -21,8 +27,8 @@ using tid = pthread_t;
 namespace xec {
 
 namespace {
-bool isCurrentThread(tid h) {
-#if defined(_WIN32)
+[[maybe_unused]] bool isCurrentThread(tid h) {
+#if WIN32_THREADS
     return h == GetCurrentThread();
 #else
     return h == pthread_self();
@@ -37,7 +43,7 @@ int doSetName(tid h, std::string_view name) {
     // however it's here so we have a notification if we violate the rule
     assert(name.length() < 16);
 
-#if defined(_WIN32)
+#if WIN32_THREADS
     std::wstring ww;
     ww.reserve(name.length());
     for (auto c : name) {
@@ -67,7 +73,7 @@ int doSetName(tid h, std::string_view name) {
 
 std::string doGetName(tid h) {
     std::string name;
-#if defined(_WIN32)
+#if WIN32_THREADS
     PWSTR desc = nullptr;
     if (FAILED(GetThreadDescription(h, &desc))) return {};
     auto p = desc;
@@ -101,7 +107,7 @@ int SetThreadName(std::thread& t, std::string_view name) {
 }
 
 int SetThisThreadName(std::string_view name) {
-#if defined(_WIN32)
+#if WIN32_THREADS
     return doSetName(GetCurrentThread(), name);
 #else
     return doSetName(pthread_self(), name);
@@ -113,7 +119,7 @@ std::string GetThreadName(std::thread& t) {
 }
 
 std::string GetThisThreadName() {
-#if defined(_WIN32)
+#if WIN32_THREADS
     return doGetName(GetCurrentThread());
 #else
     return doGetName(pthread_self());
